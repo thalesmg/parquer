@@ -1,0 +1,12 @@
+{:deps {org.clojure/data.json {:mvn/version "2.5.1"}
+        com.taoensso/telemere {:mvn/version "1.0.1"}
+        org.slf4j/slf4j-api {:mvn/version "2.0.17"}
+        com.taoensso/telemere-slf4j {:mvn/version "1.0.1"}
+
+        org.apache.parquet/parquet-common {:mvn/version "1.15.2"}
+        org.apache.parquet/parquet-column {:mvn/version "1.15.2"}
+        org.apache.parquet/parquet-hadoop {:mvn/version "1.15.2"}
+        org.apache.parquet/parquet-cli {:mvn/version "1.15.2"}
+        org.apache.parquet/parquet-avro {:mvn/version "1.15.2"}
+        org.apache.hadoop/hadoop-common {:mvn/version "3.4.1"}
+        org.apache.hadoop/hadoop-mapreduce-client-core {:mvn/version "3.4.1"}}}
