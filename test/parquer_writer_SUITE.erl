@@ -100,7 +100,7 @@ write_and_close(Writer0, Records) ->
 
 t_smoke_binary_optional(TCConfig) ->
   Schema = single_field_schema(?REPETITION_OPTIONAL, string),
-  Opts = #{},
+  Opts = proplists:get_value(writer_opts, TCConfig, #{}),
   Writer0 = parquer_writer:new(Schema, Opts),
   Records = [
     #{?F0 => <<"hello">>},
@@ -119,7 +119,7 @@ t_smoke_binary_optional(TCConfig) ->
 
 t_smoke_binary_required(TCConfig) ->
   Schema = single_field_schema(?REPETITION_REQUIRED, string),
-  Opts = #{},
+  Opts = proplists:get_value(writer_opts, TCConfig, #{}),
   Writer0 = parquer_writer:new(Schema, Opts),
   Records = [
     #{?F0 => <<"hello">>},
@@ -165,7 +165,7 @@ t_smoke_binary_repeated(TCConfig) ->
          [parquer_schema:group(
             <<"array">>, ?REPETITION_REPEATED,
             [parquer_schema:byte_array(?F1, ?REPETITION_OPTIONAL)])])]),
-  Opts = #{},
+  Opts = proplists:get_value(writer_opts, TCConfig, #{}),
   Writer0 = parquer_writer:new(Schema, Opts),
   Records = [
     #{?F0 => [#{?F1 => <<"hello">>}, #{?F1 => <<"world">>}]},
