@@ -30,12 +30,17 @@
 -define(F0, <<"f0">>).
 -define(F1, <<"f1">>).
 
+-define(enable_dictionary, enable_dictionary).
+
 %%------------------------------------------------------------------------------
 %% CT boilerplate
 %%------------------------------------------------------------------------------
 
 all() ->
   parquer_test_utils:all(?MODULE).
+
+groups() ->
+  parquer_test_utils:groups(?MODULE).
 
 init_per_suite(Config) ->
   Dir = code:lib_dir(parquer),
@@ -94,13 +99,31 @@ write_and_close(Writer0, Records) ->
   {IOData1, _Metadata1} = parquer_writer:close(Writer1),
   [IOData0, IOData1].
 
+opts_of(TCConfig) ->
+  lists:foldl(
+    fun(dict_enabled, Acc) ->
+         Acc#{?enable_dictionary => true};
+       (dict_disabled, Acc) ->
+         Acc#{?enable_dictionary => false};
+       (_, Acc) ->
+         Acc
+    end,
+    #{},
+    parquer_test_utils:group_path(TCConfig)).
+
 %%------------------------------------------------------------------------------
 %% Test cases
 %%------------------------------------------------------------------------------
 
-t_smoke_binary_optional(TCConfig) ->
+t_smoke_binary_optional() ->
+  [{matrix, true}].
+t_smoke_binary_optional(matrix) ->
+  [ [dict_enabled]
+  , [dict_disabled]
+  ];
+t_smoke_binary_optional(TCConfig) when is_list(TCConfig) ->
   Schema = single_field_schema(?REPETITION_OPTIONAL, string),
-  Opts = proplists:get_value(writer_opts, TCConfig, #{}),
+  Opts = opts_of(TCConfig),
   Writer0 = parquer_writer:new(Schema, Opts),
   Records = [
     #{?F0 => <<"hello">>},
@@ -117,9 +140,15 @@ t_smoke_binary_optional(TCConfig) ->
      Reference),
   ok.
 
-t_smoke_binary_required(TCConfig) ->
+t_smoke_binary_required() ->
+  [{matrix, true}].
+t_smoke_binary_required(matrix) ->
+  [ [dict_enabled]
+  , [dict_disabled]
+  ];
+t_smoke_binary_required(TCConfig) when is_list(TCConfig) ->
   Schema = single_field_schema(?REPETITION_REQUIRED, string),
-  Opts = proplists:get_value(writer_opts, TCConfig, #{}),
+  Opts = opts_of(TCConfig),
   Writer0 = parquer_writer:new(Schema, Opts),
   Records = [
     #{?F0 => <<"hello">>},
@@ -137,7 +166,13 @@ t_smoke_binary_required(TCConfig) ->
      write_and_close(Writer0, [#{}])),
   ok.
 
-t_smoke_binary_repeated(TCConfig) ->
+t_smoke_binary_repeated() ->
+  [{matrix, true}].
+t_smoke_binary_repeated(matrix) ->
+  [ [dict_enabled]
+  , [dict_disabled]
+  ];
+t_smoke_binary_repeated(TCConfig) when is_list(TCConfig) ->
   %% N.B.: Java implementation does not like a repeated field that is not a group.
   %%
   %% e.g.:
@@ -165,7 +200,7 @@ t_smoke_binary_repeated(TCConfig) ->
          [parquer_schema:group(
             <<"array">>, ?REPETITION_REPEATED,
             [parquer_schema:byte_array(?F1, ?REPETITION_OPTIONAL)])])]),
-  Opts = proplists:get_value(writer_opts, TCConfig, #{}),
+  Opts = opts_of(TCConfig),
   Writer0 = parquer_writer:new(Schema, Opts),
   Records = [
     #{?F0 => [#{?F1 => <<"hello">>}, #{?F1 => <<"world">>}]},

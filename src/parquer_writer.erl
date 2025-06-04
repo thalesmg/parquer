@@ -417,47 +417,49 @@ emit_magic(#writer{} = Writer0) ->
   Writer = Writer0#writer{offset = byte_size(?MAGIC_NOT_ENCRYPTED)},
   {?MAGIC_NOT_ENCRYPTED, Writer}.
 
-serialize_column(#c{data = #bools{}} = C, Writer) ->
-  #c{
-    data = #bools{encoder = Encoder},
-    num_values = NumValues,
-    num_nulls = NumNulls
-  } = C,
+serialize_column(#c{data = #bools{}} = C, #writer{} = W) ->
   %% Serialize repetition levels, definition levels, data.
-  RepLevelBin = serialize_repetition_levels(C),
-  DefLevelBin = serialize_definition_levels(C),
-  DataBin0 = parquer_rle_bp_hybrid_encoder:to_bytes(Encoder),
-  DataBin = [encode_bit_width(1) | DataBin0],
-  ColDataBin = [RepLevelBin, DefLevelBin, DataBin],
-  ColDataBinComp = compress_data(ColDataBin, C, Writer),
-  %% Serialize data page header v2 and page header
-  DataPageHeaderV2 = parquer_thrift_utils:data_page_header_v2(#{
-    ?num_values => NumValues,
-    ?num_nulls => NumNulls,
-    ?num_rows => C#c.num_rows,
-    ?encoding => ?ENCODING_PLAIN,
-    ?definition_levels_byte_length => iolist_size(DefLevelBin),
-    ?repetition_levels_byte_length => iolist_size(RepLevelBin)
-    %% TODO
-    %% ?is_compressed => TODO
-    %% ?statistics => TODO
-  }),
-  ColDataBinSize = iolist_size(ColDataBin),
-  ColDataBinCompSize = iolist_size(ColDataBinComp),
-  PageHeader = parquer_thrift_utils:page_header(#{
-    ?page_type => ?PAGE_TYPE_DATA_PAGE_V2,
-    ?uncompressed_page_size => ColDataBinSize,
-    ?compressed_page_size => ColDataBinCompSize,
-    ?data_page_header_v2 => DataPageHeaderV2
-  }),
-  PageHeaderBin = parquer_thrift_utils:serialize(PageHeader),
-  IOData = [PageHeaderBin, ColDataBinComp],
-  PageHeaderBinSize = iolist_size(PageHeaderBin),
+  ConcreteDict = #{true => 1, false => 0},
+  #{ ?compressed := ColDataBinComp
+   , ?def_level_bin := _DefLevelBin
+   , ?rep_level_bin := _RepLevelBin
+   , ?uncompressed_size := ColDataBinSize
+   , ?compressed_size := ColDataBinCompSize
+   } = DataSerializedInfo = serialize_data_with_dictionary(C, W, ConcreteDict),
+  %% Serialize data page header
+  PageHeaderDataBin = serialize_data_page_v1(DataSerializedInfo, C),
+  IOData = [PageHeaderDataBin, ColDataBinComp],
+  PageHeaderBinSize = iolist_size(PageHeaderDataBin),
   WriteMeta = #write_meta{
     num_rows = C#c.num_rows,
     total_compressed_size = PageHeaderBinSize + ColDataBinCompSize,
     total_uncompressed_size = PageHeaderBinSize + ColDataBinSize,
     data_page_header_size = PageHeaderBinSize,
+    data_uncompressed_size = ColDataBinSize,
+    data_compressed_size = ColDataBinCompSize
+  },
+  {IOData, WriteMeta};
+serialize_column(#c{data = #data{enable_dictionary = false}} = C, #writer{} = W) ->
+  %% Serialize repetition level, definition level, data. (plain)
+  #{ ?compressed := ColDataBinComp
+   , ?def_level_bin := _DefLevelBin
+   , ?rep_level_bin := _RepLevelBin
+   , ?uncompressed_size := ColDataBinSize
+   , ?compressed_size := ColDataBinCompSize
+   } = DataSerializedInfo = serialize_data_plain(C, W),
+  PageHeaderDataBin = serialize_data_page_v1(DataSerializedInfo, C),
+  IOData = [PageHeaderDataBin, ColDataBinComp],
+  PageHeaderDataBinSize = iolist_size(PageHeaderDataBin),
+  TotalCompSize = PageHeaderDataBinSize + ColDataBinCompSize,
+  TotalSize = PageHeaderDataBinSize + ColDataBinSize,
+  WriteMeta = #write_meta{
+    num_rows = C#c.num_rows,
+    total_compressed_size = TotalCompSize,
+    total_uncompressed_size = TotalSize,
+    dict_page_header_size = ?undefined,
+    dict_uncompressed_size = ?undefined,
+    dict_compressed_size = ?undefined,
+    data_page_header_size = PageHeaderDataBinSize,
     data_uncompressed_size = ColDataBinSize,
     data_compressed_size = ColDataBinCompSize
   },
@@ -479,6 +481,7 @@ serialize_column(#c{data = #data{enable_dictionary = true}} = C, #writer{} = W) 
    , ?uncompressed_size := ColDataBinSize
    , ?compressed_size := ColDataBinCompSize
    } = DataSerializedInfo = serialize_data_with_dictionary(C, W, ConcreteDict),
+  %% Serialize data page header
   PageHeaderDataBin = serialize_data_page_v1(DataSerializedInfo, C),
   IOData = [PageHeaderDictBin, DictBinComp, PageHeaderDataBin, ColDataBinComp],
   PageHeaderDictBinSize = iolist_size(PageHeaderDictBin),
@@ -573,6 +576,29 @@ serialize_dictionary_page_header(SerializedInfo) ->
   }),
   parquer_thrift_utils:serialize(PageHeaderDict).
 
+serialize_data_plain(#c{} = C, #writer{} = W) ->
+  #c{primitive_type = PrimitiveType, data = #data{values = RevValues}} = C,
+  RepLevelBin = serialize_repetition_levels(C),
+  DefLevelBin = serialize_definition_levels(C),
+  DataBin =
+    lists:foldl(
+      fun(Datum, Acc) ->
+          append_datum_bin(Acc, Datum, PrimitiveType)
+      end,
+      <<>>,
+      lists:reverse(RevValues)),
+  ColDataBin = [RepLevelBin, DefLevelBin, DataBin],
+  ColDataBinComp = compress_data(ColDataBin, C, W),
+  ColDataBinSize = iolist_size(ColDataBin),
+  ColDataBinCompSize = iolist_size(ColDataBinComp),
+  #{ ?uncompressed => ColDataBin
+   , ?compressed => ColDataBinComp
+   , ?def_level_bin => DefLevelBin
+   , ?rep_level_bin => RepLevelBin
+   , ?uncompressed_size => ColDataBinSize
+   , ?compressed_size => ColDataBinCompSize
+   }.
+
 serialize_data_with_dictionary(#c{} = C, #writer{} = W, ConcreteDict) ->
   #c{data = #data{values = RevValues}} = C,
   RepLevelBin = serialize_repetition_levels(C),
@@ -601,14 +627,21 @@ serialize_data_with_dictionary(#c{} = C, #writer{} = W, ConcreteDict) ->
    , ?compressed_size => ColDataBinCompSize
    }.
 
-serialize_data_page_v1(SerializedInfo, #c{data = #data{enable_dictionary = true}} = C) ->
+serialize_data_page_v1(SerializedInfo, #c{} = C) ->
   #c{num_values = NumValues} = C,
   #{ ?uncompressed_size := ColDataBinSize
    , ?compressed_size := ColDataBinCompSize
    } = SerializedInfo,
+  IsDictEnabled = C#c.data#data.enable_dictionary,
+  %% TODO: handle fallback to plain when dict overflows
+  ValueEncoding =
+    case IsDictEnabled of
+      true -> ?ENCODING_PLAIN_DICT;
+      false -> ?ENCODING_PLAIN
+    end,
   DataPageHeader = parquer_thrift_utils:data_page_header_v1(#{
     ?num_values => NumValues,
-    ?encoding => ?ENCODING_PLAIN_DICT,
+    ?encoding => ValueEncoding,
     ?definition_level_encoding => ?ENCODING_RLE,
     ?repetition_level_encoding => ?ENCODING_RLE
     %% TODO
@@ -654,8 +687,7 @@ append_datum_bin(BinAcc, Datum, ?BYTE_ARRAY) when is_binary(Datum) ->
   Size = encode_data_size(byte_size(Datum)),
   <<BinAcc/binary, Size/binary, Datum/binary>>;
 append_datum_bin(BinAcc, Datum, ?INT32) when is_integer(Datum) ->
-  Size = 32,
-  <<BinAcc/binary, Size:32/little, Datum:32/little>>.
+  <<BinAcc/binary, Datum:32/little>>.
 
 bit_width_of(0) ->
   0;

@@ -15,14 +15,148 @@
 %%--------------------------------------------------------------------
 -module(parquer_test_utils).
 
--compile([nowarn_export_all, export_all]).
+-export([
+  all/1,
+  groups/1,
+  matrix_cases/1,
+  matrix_to_groups/2,
+  group_path/1
+]).
 
 all(Module) ->
+  All0 = all0(Module),
+  All = All0 -- matrix_cases(Module),
+  Groups = lists:map(fun({G, _, _}) -> {group, G} end, groups(Module)),
+  Groups ++ All.
+
+groups(Module) ->
+  matrix_to_groups(Module, matrix_cases(Module)).
+
+matrix_cases(Module) ->
+    lists:filter(
+        fun
+            ({testcase, TestCase, _Opts}) ->
+                get_tc_prop(Module, TestCase, matrix, false);
+            (TestCase) ->
+                get_tc_prop(Module, TestCase, matrix, false)
+        end,
+        all0(Module)
+    ).
+
+get_tc_prop(Module, TestCase, Key, Default) ->
+    maybe
+        true ?= erlang:function_exported(Module, TestCase, 0),
+        {Key, Val} ?= proplists:lookup(Key, Module:TestCase()),
+        Val
+    else
+        _ -> Default
+    end.
+
+%% Generate ct sub-groups from test-case's 'matrix' clause
+%% NOTE: the test cases must have a root group name which
+%% is unkonwn to this API.
+%%
+%% e.g.
+%% all() -> [{group, g1}].
+%%
+%% groups() ->
+%%   parquer_test_utils:groups(?MODULE, [case1, case2]).
+%%
+%% case1(matrix) ->
+%%   {g1, [[tcp, no_auth],
+%%         [ssl, no_auth],
+%%         [ssl, basic_auth]
+%%        ]};
+%%
+%% case2(matrix) ->
+%%   {g1, ...}
+%% ...
+%%
+%% Return:
+%%
+%%  [{g1, [],
+%%     [ {tcp, [], [{no_auth,    [], [case1, case2]}
+%%                 ]},
+%%       {ssl, [], [{no_auth,    [], [case1, case2]},
+%%                  {basic_auth, [], [case1, case2]}
+%%                 ]}
+%%     ]
+%%   }
+%%  ]
+matrix_to_groups(Module, Cases) ->
+    lists:foldr(
+        fun(Case, Acc) ->
+            add_case_matrix(Module, Case, Acc)
+        end,
+        [],
+        Cases
+    ).
+
+add_case_matrix(Module, TestCase0, Acc0) ->
+    TestCase =
+        case TestCase0 of
+            {testcase, TestCase1, _Opts} ->
+                TestCase1;
+            _ ->
+                TestCase0
+        end,
+    {MaybeRootGroup, Matrix} =
+        case Module:TestCase(matrix) of
+            {RootGroup0, Matrix0} ->
+                {RootGroup0, Matrix0};
+            Matrix0 ->
+                {undefined, Matrix0}
+        end,
+    lists:foldr(
+        fun(Row, Acc) ->
+            case MaybeRootGroup of
+                undefined ->
+                    add_group(Row, Acc, TestCase0);
+                RootGroup ->
+                    add_group([RootGroup | Row], Acc, TestCase0)
+            end
+        end,
+        Acc0,
+        Matrix
+    ).
+
+add_group([], Acc, TestCase) ->
+    case lists:member(TestCase, Acc) of
+        true ->
+            Acc;
+        false ->
+            [TestCase | Acc]
+    end;
+add_group([Name | More], Acc, TestCases) ->
+    case lists:keyfind(Name, 1, Acc) of
+        false ->
+            [{Name, [], add_group(More, [], TestCases)} | Acc];
+        {Name, [], SubGroup} ->
+            New = {Name, [], add_group(More, SubGroup, TestCases)},
+            lists:keystore(Name, 1, Acc, New)
+    end.
+
+group_path(Config) ->
+    try
+        Current = proplists:get_value(tc_group_properties, Config),
+        NameF = fun(Props) ->
+            {name, Name} = lists:keyfind(name, 1, Props),
+            Name
+        end,
+        Stack = proplists:get_value(tc_group_path, Config),
+        lists:reverse(lists:map(NameF, [Current | Stack]))
+    catch
+        _:_ ->
+            []
+    end.
+
+all0(Module) ->
   lists:usort([
     F
     || {F, 1} <- Module:module_info(exports),
        string:substr(atom_to_list(F), 1, 2) == "t_"
   ]).
+
 
 %%%_* Emacs ====================================================================
 %%% Local Variables:
