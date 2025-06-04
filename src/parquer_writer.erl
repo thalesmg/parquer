@@ -299,7 +299,7 @@ do_append_to_column(Col0, Zipper0) ->
 append_datum(#c{data = #data{enable_dictionary = true}} = C0, Datum) ->
   #data{values = Values0} = Data0 = C0#c.data,
   %% TODO: handle dictionary key size overflow.
-  Data1 = ensure_key(Data0, Datum),
+  Data1 = ensure_key(Data0, Datum, C0),
   Values1 = [Datum | Values0],
   Data2 = Data1#data{values = Values1},
   C0#c{data = Data2};
@@ -319,23 +319,26 @@ append_repetition_level(#c{max_repetition_level = 0} = Col0, _RepLevel) ->
 append_repetition_level(#c{repetition_levels = RepetitionLevels0} = Col0, RepLevel) ->
   Col0#c{repetition_levels = [RepLevel | RepetitionLevels0]}.
 
-ensure_key(#data{dictionary = Dictionary} = D, Datum) when is_map_key(Datum, Dictionary) ->
+ensure_key(#data{dictionary = Dict} = D, Datum, _C) when is_map_key(Datum, Dict) ->
   D;
-ensure_key(#data{dictionary = Dictionary0, byte_size = ByteSize0} = D0, Datum) ->
-  Dictionary = Dictionary0#{Datum => true},
-  ByteSize = ByteSize0 + estimate_datum_byte_size(Datum),
+ensure_key(#data{dictionary = Dict0, byte_size = ByteSize0} = D0, Datum, C) ->
+  #c{primitive_type = PrimitiveType} = C,
+  Dict = Dict0#{Datum => true},
+  ByteSize = ByteSize0 + estimate_datum_byte_size(Datum, PrimitiveType),
   D0#data{
-    dictionary = Dictionary,
+    dictionary = Dict,
     byte_size = ByteSize
   }.
 
 %% TODO: other types
-estimate_datum_byte_size(Bin) when is_binary(Bin) ->
+estimate_datum_byte_size(Bin, ?BYTE_ARRAY) when is_binary(Bin) ->
   byte_size(Bin);
-estimate_datum_byte_size(Int) when is_integer(Int) ->
-  %% Maximum int size is 64 bits, excluding the deprecated int96 type.
-  <<U:64/unsigned>> = <<Int:64/signed>>,
-  ceil(math:log2(U) / 8).
+estimate_datum_byte_size(Int, ?INT32) when is_integer(Int) ->
+  4;
+estimate_datum_byte_size(Int, ?INT64) when is_integer(Int) ->
+  8;
+estimate_datum_byte_size(Int, ?INT96) when is_integer(Int) ->
+  12.
 
 %% todo: how to improve?
 estimate_byte_size(#c{data = #data{byte_size = ByteSize}}) ->
@@ -739,7 +742,11 @@ append_datum_bin(BinAcc, Datum, ?BYTE_ARRAY) when is_binary(Datum) ->
   Size = encode_data_size(byte_size(Datum)),
   <<BinAcc/binary, Size/binary, Datum/binary>>;
 append_datum_bin(BinAcc, Datum, ?INT32) when is_integer(Datum) ->
-  <<BinAcc/binary, Datum:32/little>>.
+  <<BinAcc/binary, Datum:32/little-signed>>;
+append_datum_bin(BinAcc, Datum, ?INT64) when is_integer(Datum) ->
+  <<BinAcc/binary, Datum:64/little-signed>>;
+append_datum_bin(BinAcc, Datum, ?INT96) when is_integer(Datum) ->
+  <<BinAcc/binary, Datum:96/little-signed>>.
 
 bit_width_of(0) ->
   0;

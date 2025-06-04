@@ -20,6 +20,7 @@
   (:import
    (java.util Base64)
    (org.apache.parquet.avro AvroParquetReader)
+   (org.apache.parquet.conf PlainParquetConfiguration)
    (org.apache.parquet.io SeekableInputStream InputFile)))
 
 (defn avro->json
@@ -81,7 +82,10 @@
 
 (defn read-parquet-avro
   [input-file]
-  (with-open [reader (AvroParquetReader/genericRecordReader input-file)]
+  (with-open [reader (AvroParquetReader/genericRecordReader
+                      input-file
+                      (PlainParquetConfiguration.
+                       {"parquet.avro.readInt96AsFixed" "true"}))]
     (loop [record (.read reader)
            acc []]
       (if record

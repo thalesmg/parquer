@@ -120,6 +120,57 @@ opts_of(TCConfig) ->
     #{},
     parquer_test_utils:group_path(TCConfig)).
 
+%% N.B.: Java implementation does not like a repeated field that is not a group.
+%%
+%% e.g.:
+%%   Execution error (ClassCastException) at org.apache.parquet.schema.Type/asGroupType
+%%   (Type.java:247).  repeated binary f is not a group
+%%
+%% Also, it does not like nulls in repeated primitive fields (unless
+%% `parquet.avro.write-old-list-structure=false`, in which case the schema
+%% representation is different).
+%%
+%% This attempts to mimick the following Parquet schema:
+%%    message root {
+%%      repeated group f0 {
+%%        optional binary f1;
+%%      }
+%%    }
+%% ... which is produced by `MessageTypeParser/parseMessageType` followed by
+%% `AvroSchemaConverter/convert`
+smoke_repeated_schema1(Type) ->
+  parquer_schema:root(
+    <<"root">>,
+    [parquer_schema:group(
+       ?F0, ?REPETITION_REQUIRED,
+       #{?converted_type => ?CONVERTED_TYPE_LIST},
+       [parquer_schema:group(
+          <<"array">>, ?REPETITION_REPEATED,
+          [parquer_schema:Type(?F1, ?REPETITION_OPTIONAL)])])]).
+
+%% Apparently, `AvroParquetReader` with `parquet.avro.readInt96AsFixed=true` reads this
+%% deprecated type like this.
+reader_int96(I) ->
+  Bin = <<I:96/signed-little>>,
+  Bytes = binary_to_list(Bin),
+  lists:map(
+    fun(U) ->
+        <<S:8/signed>> = <<U:8/unsigned>>,
+        S
+    end,
+    Bytes).
+
+smoke_values1(int32) ->
+  #{values => [-1, 0, 2147483647]};
+smoke_values1(int64) ->
+  #{values => [-1, 0, 9223372036854775807]};
+smoke_values1(int96) ->
+  Values = [-1, 0, 39614081257132168796771975167],
+  RoundtripValues = lists:map(fun reader_int96/1, Values),
+  #{ values => Values
+   , roundtrip_values => RoundtripValues
+   }.
+
 %%------------------------------------------------------------------------------
 %% Test cases
 %%------------------------------------------------------------------------------
@@ -185,33 +236,7 @@ t_smoke_binary_repeated(matrix) ->
      DataPage <- [?data_page_v1, ?data_page_v2]
   ];
 t_smoke_binary_repeated(TCConfig) when is_list(TCConfig) ->
-  %% N.B.: Java implementation does not like a repeated field that is not a group.
-  %%
-  %% e.g.:
-  %%   Execution error (ClassCastException) at org.apache.parquet.schema.Type/asGroupType
-  %%   (Type.java:247).  repeated binary f is not a group
-  %%
-  %% Also, it does not like nulls in repeated primitive fields (unless
-  %% `parquet.avro.write-old-list-structure=false`, in which case the schema
-  %% representation is different).
-  %%
-  %% This attempts to mimick the following Parquet schema:
-  %%    message root {
-  %%      repeated group f0 {
-  %%        optional binary f1;
-  %%      }
-  %%    }
-  %% ... which is produced by `MessageTypeParser/parseMessageType` followed by
-  %% `AvroSchemaConverter/convert`
-  Schema =
-    parquer_schema:root(
-      <<"root">>,
-      [parquer_schema:group(
-         ?F0, ?REPETITION_REQUIRED,
-         #{?converted_type => ?CONVERTED_TYPE_LIST},
-         [parquer_schema:group(
-            <<"array">>, ?REPETITION_REPEATED,
-            [parquer_schema:byte_array(?F1, ?REPETITION_OPTIONAL)])])]),
+  Schema = smoke_repeated_schema1(byte_array),
   Opts = opts_of(TCConfig),
   Writer0 = parquer_writer:new(Schema, Opts),
   Records = [
@@ -289,15 +314,7 @@ t_smoke_boolean_repeated(matrix) ->
      DataPage <- [?data_page_v1, ?data_page_v2]
   ];
 t_smoke_boolean_repeated(TCConfig) when is_list(TCConfig) ->
-  Schema =
-    parquer_schema:root(
-      <<"root">>,
-      [parquer_schema:group(
-         ?F0, ?REPETITION_REQUIRED,
-         #{?converted_type => ?CONVERTED_TYPE_LIST},
-         [parquer_schema:group(
-            <<"array">>, ?REPETITION_REPEATED,
-            [parquer_schema:bool(?F1, ?REPETITION_OPTIONAL)])])]),
+  Schema = smoke_repeated_schema1(bool),
   Opts = opts_of(TCConfig),
   Writer0 = parquer_writer:new(Schema, Opts),
   Records = [
@@ -315,6 +332,45 @@ t_smoke_boolean_repeated(TCConfig) when is_list(TCConfig) ->
      , #{?F0 := [#{?F1 := true}, #{?F1 := null}]}
      ],
      Reference),
+  ok.
+
+t_smoke_types_repeated() ->
+  [{matrix, true}].
+t_smoke_types_repeated(matrix) ->
+  [ [Dict, DataPage, Type]
+  || Dict <- [?dict_enabled, ?dict_disabled],
+     DataPage <- [?data_page_v1, ?data_page_v2],
+     Type <- [int32, int64, int96]
+  ];
+t_smoke_types_repeated(TCConfig) when is_list(TCConfig) ->
+  [_, _, Type] = parquer_test_utils:group_path(TCConfig),
+  #{values := [V0, V1, V2 | _] = Vs} = SVs =
+    smoke_values1(Type),
+  [EV0, EV1, EV2 | _] = EVs = maps:get(roundtrip_values, SVs, Vs),
+  Schema = smoke_repeated_schema1(Type),
+  Opts = opts_of(TCConfig),
+  Writer0 = parquer_writer:new(Schema, Opts),
+  Records = [
+    #{?F0 => [#{?F1 => V0}, #{?F1 => V1}]},
+    #{?F0 => []},
+    #{?F0 => ?undefined},
+    #{?F0 => [#{?F1 => V2}, #{}]}
+  ],
+  Parquet = write_and_close(Writer0, Records),
+  Reference = query_oracle(Parquet, TCConfig),
+  %% OTP bug?!? CT bug?!?
+  %% If this is an `?assertMatch` with EV0, ..., EV2, for int64 this fails, and the
+  %% printed values all match......
+  ?assertEqual(
+     [ #{?F0 => [#{?F1 => EV0}, #{?F1 => EV1}]}
+     , #{?F0 => []}
+     , #{?F0 => []}
+     , #{?F0 => [#{?F1 => EV2}, #{?F1 => null}]}
+     ],
+     Reference,
+     #{ expected => EVs
+      , inputs__ => Vs
+      }),
   ok.
 
 %%%_* Emacs ====================================================================
