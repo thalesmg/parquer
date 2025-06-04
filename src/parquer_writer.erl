@@ -25,7 +25,7 @@
 %% Debugging only
 -export([inspect/1]).
 
--export_type([t/0]).
+-export_type([t/0, write_metadata/0]).
 
 -include("parquer.hrl").
 -include("parquer_thrift.hrl").
@@ -104,6 +104,11 @@
 -type data() :: parquer_zipper:data().
 -type compression() :: ?COMPRESSION_NONE | ?COMPRESSION_SNAPPY | ?COMPRESSION_ZSTD.
 
+-type write_metadata() :: #{
+  num_rows => non_neg_integer(),
+  atom() => term()
+}.
+
 %%------------------------------------------------------------------------------
 %% API
 %%------------------------------------------------------------------------------
@@ -114,7 +119,7 @@ new(Schema, #{} = Opts) ->
   Columns = initialize_columns(FlatSchema),
   #writer{schema = FlatSchema, columns = Columns, opts = Opts}.
 
--spec append_records(t(), [data()]) -> {iodata(), t()}.
+-spec append_records(t(), [data()]) -> {iodata(), [write_metadata()], t()}.
 append_records(#writer{} = Writer0, Records) when is_list(Records) ->
   Writer1 =
     lists:foldl(
@@ -128,6 +133,7 @@ append_records(#writer{} = Writer0, Records) when is_list(Records) ->
       Records),
   maybe_emit_row_group(Writer1).
 
+-spec close(t()) -> {iodata(), [write_metadata()]}.
 close(#writer{} = Writer) ->
   do_close(Writer).
 
@@ -285,13 +291,14 @@ estimate_byte_size(#c{data = #bools{encoder = Encoder}}) ->
 estimate_byte_size(#c{data = #data{byte_size = ByteSize}}) ->
   ByteSize.
 
+-spec do_close(t()) -> {iodata(), [write_metadata()]}.
 do_close(#writer{} = Writer0) ->
-  {IOData0, Writer1} =
+  {IOData0, WriteMetaOut, Writer1} =
     case Writer0#writer.has_data of
       true ->
         close_row_group(Writer0);
       false ->
-        {[], Writer0}
+        {[], [], Writer0}
     end,
   RowGroups = lists:reverse(Writer1#writer.closed_row_groups),
   FMD = parquer_thrift_utils:file_metadata(#{
@@ -303,9 +310,9 @@ do_close(#writer{} = Writer0) ->
   }),
   FMDBin = parquer_thrift_utils:serialize(FMD),
   FMDBinSize = iolist_size(FMDBin),
-  [IOData0, FMDBin, encode_data_size(FMDBinSize), ?MAGIC_NOT_ENCRYPTED].
+  {[IOData0, FMDBin, encode_data_size(FMDBinSize), ?MAGIC_NOT_ENCRYPTED], WriteMetaOut}.
 
--spec maybe_emit_row_group(t()) -> {iodata(), t()}.
+-spec maybe_emit_row_group(t()) -> {iodata(), write_metadata(), t()}.
 maybe_emit_row_group(#writer{} = Writer0) ->
   EstimatedByteSize =
     lists:foldl(
@@ -317,7 +324,7 @@ maybe_emit_row_group(#writer{} = Writer0) ->
     true ->
       close_row_group(Writer0);
     false ->
-      {[], Writer0}
+      {[], [], Writer0}
   end.
 
 close_row_group(#writer{} = Writer0) ->
@@ -354,7 +361,8 @@ close_row_group(#writer{} = Writer0) ->
     num_rows = Writer2#writer.num_rows + NumRows,
     closed_row_groups = [RowGroup | Writer2#writer.closed_row_groups]
   },
-  {[MMagic, IOData], Writer3}.
+  WriteMetasOut = lists:map(fun write_metadata_out/1, WriteMetas),
+  {[MMagic, IOData], WriteMetasOut, Writer3}.
 
 maybe_emit_magic(#writer{offset = 0} = Writer0) ->
   %% File just started.
@@ -647,6 +655,11 @@ data_page_offset(#write_meta{} = WriteMeta, #writer{offset = BaseOffset}) ->
 
 schema_to_thrift(#writer{schema = Schema}) ->
   lists:map(fun parquer_thrift_utils:schema_element/1, Schema).
+
+write_metadata_out(#write_meta{} = WM) ->
+  #{
+     num_rows => WM#write_meta.num_rows
+   }.
 
 %%%_* Emacs ====================================================================
 %%% Local Variables:

@@ -90,8 +90,8 @@ single_field_schema(Repetition, Type) when is_atom(Type) ->
   parquer_schema:root(<<"root">>, [parquer_schema:Type(?F0, Repetition)]).
 
 write_and_close(Writer0, Records) ->
-  {IOData0, Writer1} = parquer_writer:append_records(Writer0, Records),
-  IOData1 = parquer_writer:close(Writer1),
+  {IOData0, _Metadata0, Writer1} = parquer_writer:append_records(Writer0, Records),
+  {IOData1, _Metadata1} = parquer_writer:close(Writer1),
   [IOData0, IOData1].
 
 %%------------------------------------------------------------------------------
