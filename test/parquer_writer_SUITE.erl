@@ -30,6 +30,11 @@
 -define(F0, <<"f0">>).
 -define(F1, <<"f1">>).
 
+-define(data_page_header_version, data_page_header_version).
+-define(data_page_v1, data_page_v1).
+-define(data_page_v2, data_page_v2).
+-define(dict_disabled, dict_disabled).
+-define(dict_enabled, dict_enabled).
 -define(enable_dictionary, enable_dictionary).
 
 %%------------------------------------------------------------------------------
@@ -101,10 +106,14 @@ write_and_close(Writer0, Records) ->
 
 opts_of(TCConfig) ->
   lists:foldl(
-    fun(dict_enabled, Acc) ->
+    fun(?dict_enabled, Acc) ->
          Acc#{?enable_dictionary => true};
-       (dict_disabled, Acc) ->
+       (?dict_disabled, Acc) ->
          Acc#{?enable_dictionary => false};
+       (?data_page_v1, Acc) ->
+         Acc#{?data_page_header_version => 1};
+       (?data_page_v2, Acc) ->
+         Acc#{?data_page_header_version => 2};
        (_, Acc) ->
          Acc
     end,
@@ -118,8 +127,9 @@ opts_of(TCConfig) ->
 t_smoke_binary_optional() ->
   [{matrix, true}].
 t_smoke_binary_optional(matrix) ->
-  [ [dict_enabled]
-  , [dict_disabled]
+  [ [Dict, DataPage]
+  || Dict <- [?dict_enabled, ?dict_disabled],
+     DataPage <- [?data_page_v1, ?data_page_v2]
   ];
 t_smoke_binary_optional(TCConfig) when is_list(TCConfig) ->
   Schema = single_field_schema(?REPETITION_OPTIONAL, string),
@@ -143,8 +153,9 @@ t_smoke_binary_optional(TCConfig) when is_list(TCConfig) ->
 t_smoke_binary_required() ->
   [{matrix, true}].
 t_smoke_binary_required(matrix) ->
-  [ [dict_enabled]
-  , [dict_disabled]
+  [ [Dict, DataPage]
+  || Dict <- [?dict_enabled, ?dict_disabled],
+     DataPage <- [?data_page_v1, ?data_page_v2]
   ];
 t_smoke_binary_required(TCConfig) when is_list(TCConfig) ->
   Schema = single_field_schema(?REPETITION_REQUIRED, string),
@@ -169,8 +180,9 @@ t_smoke_binary_required(TCConfig) when is_list(TCConfig) ->
 t_smoke_binary_repeated() ->
   [{matrix, true}].
 t_smoke_binary_repeated(matrix) ->
-  [ [dict_enabled]
-  , [dict_disabled]
+  [ [Dict, DataPage]
+  || Dict <- [?dict_enabled, ?dict_disabled],
+     DataPage <- [?data_page_v1, ?data_page_v2]
   ];
 t_smoke_binary_repeated(TCConfig) when is_list(TCConfig) ->
   %% N.B.: Java implementation does not like a repeated field that is not a group.

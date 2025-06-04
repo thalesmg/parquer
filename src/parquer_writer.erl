@@ -38,10 +38,15 @@
 -define(DEFAULT_MAX_ROW_GROUP_BYTES, 1024 * 1024).
 
 -define(DEFAULT_COMPRESSION, ?COMPRESSION_ZSTD).
+-define(DEFAULT_COMPRESSION_OPTS, #{}).
+-define(DEFAULT_DATA_HEADER_VSN, 1).
+
+-define(IS_VALID_DATA_HEADER_VSN(VSN), ((VSN == 1) orelse (VSN == 2))).
 
 -define(compressed, compressed).
 -define(compressed_size, compressed_size).
 -define(concrete_dictionary, concrete_dictionary).
+-define(data_page_header_version, data_page_header_version).
 -define(def_level_bin, def_level_bin).
 -define(enable_dictionary, enable_dictionary).
 -define(num_dict_keys, num_dict_keys).
@@ -49,7 +54,6 @@
 -define(rep_level_bin, rep_level_bin).
 -define(uncompressed, uncompressed).
 -define(uncompressed_size, uncompressed_size).
--define(use_data_page_header_v2, use_data_page_header_v2).
 
 %% State
 -record(writer, {
@@ -67,6 +71,7 @@
   path,
   repetition,
   primitive_type,
+  data_page_version,
   max,
   min,
   max_definition_level,
@@ -118,17 +123,18 @@
     columns that are not boolean.  Default is `true` (enabled for all columns).
 
   * `default_compression` - the compression algorithm to be used when it's not specified
-    per column.
-    Valid values: `none` | `snappy` | `zstd`.
-    Defaults to `zstd`.
+    per column, along with its options map.
+    Valid types: `none` | `snappy` | `zstd`.
+    Defaults to {`zstd`, #{}}.
 
-  * `use_data_page_header_v2` - whether to write data page headers using the V2 format.
-    Defaults to `false`.
+  * `data_page_header_version` - which data page version to use.
+    Valid values: `1` | `2`.
+    Defaults to `1`.
 
 """.
 -type writer_opts() :: #{
   ?default_compression => compression(),
-  ?use_data_page_header_v2 => boolean(),
+  ?data_page_header_version => 1..2,
   any() => term()
 }.
 -type data() :: parquer_zipper:data().
@@ -146,9 +152,9 @@
 -spec new(map(), writer_opts()) -> t().
 new(Schema, #{} = Opts0) ->
   DefaultOpts = #{
-    ?default_compression => ?DEFAULT_COMPRESSION,
+    ?default_compression => {?DEFAULT_COMPRESSION, ?DEFAULT_COMPRESSION_OPTS},
     ?enable_dictionary => true,
-    ?use_data_page_header_v2 => false
+    ?data_page_header_version => 1
   },
   Opts = maps:merge(DefaultOpts, Opts0),
   FlatSchema = parquer_schema:flatten(Schema),
@@ -192,6 +198,7 @@ inspect(#c{} = C) ->
     path => C#c.path,
     repetition => C#c.repetition,
     primitive_type => C#c.primitive_type,
+    data_page_header_version => C#c.data_page_version,
     max => C#c.max,
     min => C#c.min,
     max_definition_level => C#c.max_definition_level,
@@ -201,7 +208,18 @@ inspect(#c{} = C) ->
     num_rows => C#c.num_rows,
     definition_levels => lists:reverse(C#c.definition_levels),
     repetition_levels => lists:reverse(C#c.repetition_levels),
-    data => C#c.data
+    data => inspect(C#c.data)
+  };
+inspect(#data{} = D) ->
+  #{
+    byte_size => D#data.byte_size,
+    enable_dictionary => D#data.enable_dictionary,
+    dictionary => D#data.dictionary,
+    values => lists:reverse(D#data.values)
+  };
+inspect(#bools{} = B) ->
+  #{
+    encoder => B#bools.encoder
   }.
 
 %%------------------------------------------------------------------------------
@@ -229,25 +247,27 @@ initial_column_state(LeafColumnSchema, Opts) ->
    , ?max_repetition_level := MaxRepLevel
    } = LeafColumnSchema,
   KeyRepetitions = Path ++ [{Name, Repetition}],
+  {KeyPath, _} = lists:unzip(KeyRepetitions),
+  DataPageVersion = data_page_header_version(KeyPath, Opts),
   #c{
     path = KeyRepetitions,
     repetition = Repetition,
     primitive_type = PrimitiveType,
+    data_page_version = DataPageVersion,
     max = undefined,
     min = undefined,
     max_repetition_level = MaxRepLevel,
     max_definition_level = MaxDefLevel,
     repetition_levels = [],
     definition_levels = [],
-    data = init_data(PrimitiveType, KeyRepetitions, Opts)
+    data = init_data(PrimitiveType, KeyPath, Opts)
   }.
 
-init_data(?BOOLEAN, _KeyRepetitions, _Opts) ->
+init_data(?BOOLEAN, _KeyPath, _Opts) ->
   BitWidth = 1,
   Encoder = parquer_rle_bp_hybrid_encoder:new(BitWidth),
   #bools{encoder = Encoder};
-init_data(_PrimitiveType, KeyRepetitions, Opts) ->
-  {KeyPath, _} = lists:unzip(KeyRepetitions),
+init_data(_PrimitiveType, KeyPath, Opts) ->
   IsDictEnabled = is_dictionary_enabled(KeyPath, Opts),
   #data{
     enable_dictionary = IsDictEnabled,
@@ -427,7 +447,7 @@ serialize_column(#c{data = #bools{}} = C, #writer{} = W) ->
    , ?compressed_size := ColDataBinCompSize
    } = DataSerializedInfo = serialize_data_with_dictionary(C, W, ConcreteDict),
   %% Serialize data page header
-  PageHeaderDataBin = serialize_data_page_v1(DataSerializedInfo, C),
+  PageHeaderDataBin = serialize_data_page(DataSerializedInfo, C),
   IOData = [PageHeaderDataBin, ColDataBinComp],
   PageHeaderBinSize = iolist_size(PageHeaderDataBin),
   WriteMeta = #write_meta{
@@ -447,7 +467,7 @@ serialize_column(#c{data = #data{enable_dictionary = false}} = C, #writer{} = W)
    , ?uncompressed_size := ColDataBinSize
    , ?compressed_size := ColDataBinCompSize
    } = DataSerializedInfo = serialize_data_plain(C, W),
-  PageHeaderDataBin = serialize_data_page_v1(DataSerializedInfo, C),
+  PageHeaderDataBin = serialize_data_page(DataSerializedInfo, C),
   IOData = [PageHeaderDataBin, ColDataBinComp],
   PageHeaderDataBinSize = iolist_size(PageHeaderDataBin),
   TotalCompSize = PageHeaderDataBinSize + ColDataBinCompSize,
@@ -482,7 +502,7 @@ serialize_column(#c{data = #data{enable_dictionary = true}} = C, #writer{} = W) 
    , ?compressed_size := ColDataBinCompSize
    } = DataSerializedInfo = serialize_data_with_dictionary(C, W, ConcreteDict),
   %% Serialize data page header
-  PageHeaderDataBin = serialize_data_page_v1(DataSerializedInfo, C),
+  PageHeaderDataBin = serialize_data_page(DataSerializedInfo, C),
   IOData = [PageHeaderDictBin, DictBinComp, PageHeaderDataBin, ColDataBinComp],
   PageHeaderDictBinSize = iolist_size(PageHeaderDictBin),
   PageHeaderDataBinSize = iolist_size(PageHeaderDataBin),
@@ -505,21 +525,23 @@ serialize_repetition_levels(#c{max_repetition_level = 0}) ->
   [];
 serialize_repetition_levels(#c{} = C) ->
   #c{
+    data_page_version = DataPageVersion,
     repetition_levels = RevRepLevels,
     max_repetition_level = MaxRepLevel
   } = C,
-  serialize_levels(RevRepLevels, MaxRepLevel).
+  serialize_levels(RevRepLevels, MaxRepLevel, DataPageVersion).
 
 serialize_definition_levels(#c{max_definition_level = 0}) ->
   [];
 serialize_definition_levels(#c{} = C) ->
   #c{
+    data_page_version = DataPageVersion,
     definition_levels = RevDefLevels,
     max_definition_level = MaxDefLevel
   } = C,
-  serialize_levels(RevDefLevels, MaxDefLevel).
+  serialize_levels(RevDefLevels, MaxDefLevel, DataPageVersion).
 
-serialize_levels(RevLevels, MaxLevel) ->
+serialize_levels(RevLevels, MaxLevel, DataPageVersion) ->
   Levels = lists:reverse(RevLevels),
   BitWidth = bit_width_of(MaxLevel),
   Encoder0 = parquer_rle_bp_hybrid_encoder:new(BitWidth),
@@ -528,7 +550,12 @@ serialize_levels(RevLevels, MaxLevel) ->
                Encoder0,
                Levels),
   RLEBytes = parquer_rle_bp_hybrid_encoder:to_bytes(Encoder1),
-  [encode_data_size(iolist_size(RLEBytes)) | RLEBytes].
+  case DataPageVersion of
+    1 ->
+      [encode_data_size(iolist_size(RLEBytes)) | RLEBytes];
+    2 ->
+      RLEBytes
+  end.
 
 serialize_dictionary(#c{} = C, #writer{} = W) ->
   #c{
@@ -545,7 +572,7 @@ serialize_dictionary(#c{} = C, #writer{} = W) ->
      {<<>>, #{}, 0},
      Dictionary
     ),
-  DictBinComp = compress_data(DictBin, C, W),
+  {DictBinComp, _} = compress_data(_RepLevelBin = [], _DefLevelBin = [], DictBin, C, W),
   NumDictKeys = map_size(ConcreteDict),
   DictBinSize = iolist_size(DictBin),
   DictBinCompSize = iolist_size(DictBinComp),
@@ -587,8 +614,7 @@ serialize_data_plain(#c{} = C, #writer{} = W) ->
       end,
       <<>>,
       lists:reverse(RevValues)),
-  ColDataBin = [RepLevelBin, DefLevelBin, DataBin],
-  ColDataBinComp = compress_data(ColDataBin, C, W),
+  {ColDataBinComp, ColDataBin} = compress_data(RepLevelBin, DefLevelBin, DataBin, C, W),
   ColDataBinSize = iolist_size(ColDataBin),
   ColDataBinCompSize = iolist_size(ColDataBinComp),
   #{ ?uncompressed => ColDataBin
@@ -615,8 +641,7 @@ serialize_data_with_dictionary(#c{} = C, #writer{} = W, ConcreteDict) ->
       lists:reverse(RevValues)),
   DataBin0 = parquer_rle_bp_hybrid_encoder:to_bytes(DataEncoder1),
   DataBin = [encode_bit_width(DataBitWidth) | DataBin0],
-  ColDataBin = [RepLevelBin, DefLevelBin, DataBin],
-  ColDataBinComp = compress_data(ColDataBin, C, W),
+  {ColDataBinComp, ColDataBin} = compress_data(RepLevelBin, DefLevelBin, DataBin, C, W),
   ColDataBinSize = iolist_size(ColDataBin),
   ColDataBinCompSize = iolist_size(ColDataBinComp),
   #{ ?uncompressed => ColDataBin
@@ -626,6 +651,14 @@ serialize_data_with_dictionary(#c{} = C, #writer{} = W, ConcreteDict) ->
    , ?uncompressed_size => ColDataBinSize
    , ?compressed_size => ColDataBinCompSize
    }.
+
+serialize_data_page(SerializedInfo, #c{} = C) ->
+  case C#c.data_page_version of
+    2 ->
+      serialize_data_page_v2(SerializedInfo, #c{} = C);
+    1 ->
+      serialize_data_page_v1(SerializedInfo, #c{} = C)
+  end.
 
 serialize_data_page_v1(SerializedInfo, #c{} = C) ->
   #c{num_values = NumValues} = C,
@@ -656,18 +689,25 @@ serialize_data_page_v1(SerializedInfo, #c{} = C) ->
   }),
   parquer_thrift_utils:serialize(PageHeaderData).
 
-serialize_data_page_v2(SerializedInfo, #c{data = #data{enable_dictionary = true}} = C) ->
+serialize_data_page_v2(SerializedInfo, #c{} = C) ->
   #c{num_values = NumValues, num_nulls = NumNulls} = C,
   #{ ?uncompressed_size := ColDataBinSize
    , ?compressed_size := ColDataBinCompSize
    , ?def_level_bin := DefLevelBin
    , ?rep_level_bin := RepLevelBin
    } = SerializedInfo,
+  IsDictEnabled = C#c.data#data.enable_dictionary,
+  %% TODO: handle fallback to plain when dict overflows
+  ValueEncoding =
+    case IsDictEnabled of
+      true -> ?ENCODING_PLAIN_DICT;
+      false -> ?ENCODING_PLAIN
+    end,
   DataPageHeader = parquer_thrift_utils:data_page_header_v2(#{
     ?num_values => NumValues,
     ?num_nulls => NumNulls,
     ?num_rows => C#c.num_rows,
-    ?encoding => ?ENCODING_PLAIN_DICT,
+    ?encoding => ValueEncoding,
     ?definition_levels_byte_length => iolist_size(DefLevelBin),
     ?repetition_levels_byte_length => iolist_size(RepLevelBin)
     %% TODO
@@ -700,15 +740,22 @@ encode_bit_width(BitWidth) ->
 encode_data_size(Size) ->
   <<Size:32/little>>.
 
-compress_data(DataBin, Col, Writer) ->
-  {Compression, Opts} = get_compression(Col, Writer),
-  do_compress_data(DataBin, Compression, Opts).
+compress_data(RepLevelBin, DefLevelBin, DataBin, C, W) ->
+  {Compression, Opts} = get_compression(C, W),
+  case C#c.data_page_version of
+    1 ->
+      Uncompressed = [RepLevelBin, DefLevelBin, DataBin],
+      Compressed = do_compress_data(Uncompressed, Compression, Opts),
+      {Compressed, Uncompressed};
+    2 ->
+      Compressed = do_compress_data(DataBin, Compression, Opts),
+      {[RepLevelBin, DefLevelBin, Compressed], [RepLevelBin, DefLevelBin, DataBin]}
+  end.
 
 get_compression(_Col, #writer{opts = Opts}) ->
   %% todo: per-column compression and compression opts
   CompressionOpts = #{},
-  Compression = maps:get(?default_compression, Opts, ?DEFAULT_COMPRESSION),
-  {Compression, CompressionOpts}.
+  maps:get(?default_compression, Opts, {?DEFAULT_COMPRESSION, CompressionOpts}).
 
 do_compress_data(DataBin, ?COMPRESSION_NONE, _Opts) ->
   DataBin;
@@ -788,6 +835,17 @@ is_dictionary_enabled(KeyPath, Opts) ->
       Bool;
     #{?enable_dictionary := Bool} ->
       Bool
+  end.
+
+data_page_header_version(KeyPath, Opts) ->
+  ColKeyPath = iolist_to_binary(lists:join($., KeyPath)),
+  case Opts of
+    #{?data_page_header_version := #{ColKeyPath := Vsn}} when ?IS_VALID_DATA_HEADER_VSN(Vsn) ->
+      Vsn;
+    #{?data_page_header_version := Vsn} when ?IS_VALID_DATA_HEADER_VSN(Vsn) ->
+      Vsn;
+    _ ->
+      ?DEFAULT_DATA_HEADER_VSN
   end.
 
 %%%_* Emacs ====================================================================

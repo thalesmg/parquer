@@ -508,7 +508,9 @@ defmodule Parquer do
     end
   end
 
-  def inspect_column(filepath, nth_rg \\ 0, nth_col \\ 0, opts \\ []) do
+  def inspect_col(filepath, opts \\ []) do
+    nth_rg = Keyword.get(opts, :nth_rg, 0)
+    nth_col = Keyword.get(opts, :nth_col, 0)
     fmd = inspect_fmd(filepath)
     col = get_in(fmd, [:row_groups, Access.at!(nth_rg), :columns, Access.at!(nth_col)])
     %{
@@ -523,7 +525,7 @@ defmodule Parquer do
       IO.inspect(%{file_offset: file_offset, col_size: col_size})
       {:ok, raw_rg} = :file.pread(fd, {:bof, max(file_offset, 4)}, col_size)
       {:ok, header, proto1} = deserialize(raw_rg, :pageHeader)
-      |> IO.inspect()
+      |> IO.inspect(label: :first_header)
       case header do
         %{
           type: @parquer_parquet_pagetype_dictionary_page,
@@ -885,6 +887,21 @@ defmodule Parquer do
     )
     |> elem(1)
     |> :parquer_writer.close()
+    |> then(&File.write!("./aaa.parquet", &1))
+  end
+
+  def smoke_test_optional() do
+    :parquer_schema.root("root", [:parquer_schema.string("f0", :optional)])
+    |> :parquer_writer.new(%{})
+    |> tap(& &1 |> :parquer_writer.inspect() |> IO.inspect())
+    |> :parquer_writer.append_records(
+      [
+        %{"f0" => "hello"}
+      ]
+    )
+    |> elem(2)
+    |> :parquer_writer.close()
+    |> elem(0)
     |> then(&File.write!("./aaa.parquet", &1))
   end
 end
