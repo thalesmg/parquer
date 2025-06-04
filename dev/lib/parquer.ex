@@ -586,12 +586,10 @@ defmodule Parquer do
           def_width = Keyword.get(opts, :def_width, 2)
           ## fixme: hard-coding that length is prepended due to assuming v1 page header
           IO.inspect(%{data_raw: data_raw})
-          <<size::32-little, data::size(size)-binary, rest::binary>> = data_raw
-          repetitions = decode_rle(data, rep_width, num_values)
-          IO.inspect(%{raw: data_raw, size: size, data: data, rest: rest, xs: repetitions}, label: :reps)
-          <<size::32-little, data::size(size)-binary, rest::binary>> = rest
-          definitions = decode_rle(data, def_width, num_values)
-          IO.inspect(%{size: size, data: data, rest: rest, xs: definitions}, label: :defs)
+          {repetitions, rest} = decode_levels(data_raw, rep_width, num_values)
+          IO.inspect(%{raw: data_raw, size: size, rest: rest, xs: repetitions}, label: :reps)
+          {definitions, rest} = decode_levels(rest, def_width, num_values)
+          IO.inspect(%{size: size, rest: rest, xs: definitions}, label: :defs)
           data = decode_plain(rest)
           IO.inspect(%{xs: data}, label: :data)
           {repetitions, definitions, data}
@@ -599,6 +597,15 @@ defmodule Parquer do
     after
       File.close(fd)
     end
+  end
+
+  def decode_levels(data_raw, 0, num_values) do
+    {[], data_raw}
+  end
+  def decode_levels(data_raw, width, num_values) do
+    <<size::32-little, data::size(size)-binary, rest::binary>> = data_raw
+    lvls = decode_rle(data, width, num_values)
+    {lvls, rest}
   end
 
   def decode_plain(raw) do
@@ -897,6 +904,21 @@ defmodule Parquer do
     |> :parquer_writer.append_records(
       [
         %{"f0" => "hello"}
+      ]
+    )
+    |> elem(2)
+    |> :parquer_writer.close()
+    |> elem(0)
+    |> then(&File.write!("./aaa.parquet", &1))
+  end
+
+  def smoke_test_boolean_optional() do
+    :parquer_schema.root("root", [:parquer_schema.bool("f0", :optional)])
+    |> :parquer_writer.new(%{})
+    |> tap(& &1 |> :parquer_writer.inspect() |> IO.inspect())
+    |> :parquer_writer.append_records(
+      [
+        %{"f0" => true}
       ]
     )
     |> elem(2)

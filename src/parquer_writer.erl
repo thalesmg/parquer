@@ -86,11 +86,6 @@
   data
 }).
 
-%% Boolean values
--record(bools, {
-  encoder
-}).
-
 %% Other values
 -record(data, {
   byte_size = 0,
@@ -216,10 +211,6 @@ inspect(#data{} = D) ->
     enable_dictionary => D#data.enable_dictionary,
     dictionary => D#data.dictionary,
     values => lists:reverse(D#data.values)
-  };
-inspect(#bools{} = B) ->
-  #{
-    encoder => B#bools.encoder
   }.
 
 %%------------------------------------------------------------------------------
@@ -264,9 +255,11 @@ initial_column_state(LeafColumnSchema, Opts) ->
   }.
 
 init_data(?BOOLEAN, _KeyPath, _Opts) ->
-  BitWidth = 1,
-  Encoder = parquer_rle_bp_hybrid_encoder:new(BitWidth),
-  #bools{encoder = Encoder};
+  #data{
+    enable_dictionary = false,
+    dictionary = #{},
+    values = []
+  };
 init_data(_PrimitiveType, KeyPath, Opts) ->
   IsDictEnabled = is_dictionary_enabled(KeyPath, Opts),
   #data{
@@ -299,27 +292,23 @@ do_append_to_column(Col0, Zipper0) ->
       },
       Col2 = append_definition_level(Col1, DefLevel),
       Col3 = append_repetition_level(Col2, RepLevel),
-      Col4 = append_data(Col3, Val),
+      Col4 = append_datum(Col3, Val),
       do_append_to_column(Col4, parquer_zipper:next(Zipper0))
   end.
 
-append_data(#c{primitive_type = ?BOOLEAN} = Col0, Bool) ->
-  #bools{encoder = Encoder0} = Data0 = Col0#c.data,
-  Encoder1 =
-    case Bool of
-      true -> parquer_rle_bp_hybrid_encoder:write_int(Encoder0, 1);
-      false -> parquer_rle_bp_hybrid_encoder:write_int(Encoder0, 0)
-    end,
-  Col0#c{data = Data0#bools{encoder = Encoder1}};
-append_data(#c{} = Col0, Datum) ->
-  #data{values = Values0} = Data0 = Col0#c.data,
+append_datum(#c{data = #data{enable_dictionary = true}} = C0, Datum) ->
+  #data{values = Values0} = Data0 = C0#c.data,
   %% TODO: handle dictionary key size overflow.
   Data1 = ensure_key(Data0, Datum),
   Values1 = [Datum | Values0],
   Data2 = Data1#data{values = Values1},
-  Col0#c{data = Data2}.
+  C0#c{data = Data2};
+append_datum(#c{} = C0, Datum) ->
+  #data{values = Values0} = Data0 = C0#c.data,
+  Values1 = [Datum | Values0],
+  Data1 = Data0#data{values = Values1},
+  C0#c{data = Data1}.
 
-%% WRONG: should not write def level if schema is flat _and_ required.
 append_definition_level(#c{max_definition_level = 0} = Col0, _DefLevel) ->
   Col0;
 append_definition_level(#c{definition_levels = DefinitionLevels0} = Col0, DefLevel) ->
@@ -349,8 +338,6 @@ estimate_datum_byte_size(Int) when is_integer(Int) ->
   ceil(math:log2(U) / 8).
 
 %% todo: how to improve?
-estimate_byte_size(#c{data = #bools{encoder = Encoder}}) ->
-  parquer_rle_bp_hybrid_encoder:estimate_byte_size(Encoder);
 estimate_byte_size(#c{data = #data{byte_size = ByteSize}}) ->
   ByteSize.
 
@@ -437,15 +424,35 @@ emit_magic(#writer{} = Writer0) ->
   Writer = Writer0#writer{offset = byte_size(?MAGIC_NOT_ENCRYPTED)},
   {?MAGIC_NOT_ENCRYPTED, Writer}.
 
-serialize_column(#c{data = #bools{}} = C, #writer{} = W) ->
+serialize_column(#c{primitive_type = ?BOOLEAN} = C, #writer{} = W) ->
   %% Serialize repetition levels, definition levels, data.
-  ConcreteDict = #{true => 1, false => 0},
-  #{ ?compressed := ColDataBinComp
-   , ?def_level_bin := _DefLevelBin
-   , ?rep_level_bin := _RepLevelBin
-   , ?uncompressed_size := ColDataBinSize
-   , ?compressed_size := ColDataBinCompSize
-   } = DataSerializedInfo = serialize_data_with_dictionary(C, W, ConcreteDict),
+  #c{data = #data{values = RevValues}} = C,
+  RepLevelBin = serialize_repetition_levels(C),
+  DefLevelBin = serialize_definition_levels(C),
+  DataBitWidth = 1,
+  DataEncoder0 = parquer_rle_bp_hybrid_encoder:new(DataBitWidth),
+  DataEncoder1 =
+    lists:foldl(
+      fun(true, Acc) ->
+          parquer_rle_bp_hybrid_encoder:write_int(Acc, 1);
+         (false, Acc) ->
+          parquer_rle_bp_hybrid_encoder:write_int(Acc, 0)
+      end,
+      DataEncoder0,
+      lists:reverse(RevValues)),
+  DataBin0 = parquer_rle_bp_hybrid_encoder:to_bytes(DataEncoder1),
+  DataBin = [encode_data_size(iolist_size(DataBin0)) | DataBin0],
+  {ColDataBinComp, ColDataBin} = compress_data(RepLevelBin, DefLevelBin, DataBin, C, W),
+  ColDataBinSize = iolist_size(ColDataBin),
+  ColDataBinCompSize = iolist_size(ColDataBinComp),
+  DataSerializedInfo = #{
+    ?uncompressed => ColDataBin,
+    ?compressed => ColDataBinComp,
+    ?def_level_bin => DefLevelBin,
+    ?rep_level_bin => RepLevelBin,
+    ?uncompressed_size => ColDataBinSize,
+    ?compressed_size => ColDataBinCompSize
+  },
   %% Serialize data page header
   PageHeaderDataBin = serialize_data_page(DataSerializedInfo, C),
   IOData = [PageHeaderDataBin, ColDataBinComp],
@@ -661,7 +668,7 @@ serialize_data_page(SerializedInfo, #c{} = C) ->
   end.
 
 serialize_data_page_v1(SerializedInfo, #c{} = C) ->
-  #c{num_values = NumValues} = C,
+  #c{num_values = NumValues, primitive_type = PrimitiveType} = C,
   #{ ?uncompressed_size := ColDataBinSize
    , ?compressed_size := ColDataBinCompSize
    } = SerializedInfo,
@@ -670,6 +677,7 @@ serialize_data_page_v1(SerializedInfo, #c{} = C) ->
   ValueEncoding =
     case IsDictEnabled of
       true -> ?ENCODING_PLAIN_DICT;
+      false when PrimitiveType == ?BOOLEAN -> ?ENCODING_RLE;
       false -> ?ENCODING_PLAIN
     end,
   DataPageHeader = parquer_thrift_utils:data_page_header_v1(#{
@@ -690,7 +698,10 @@ serialize_data_page_v1(SerializedInfo, #c{} = C) ->
   parquer_thrift_utils:serialize(PageHeaderData).
 
 serialize_data_page_v2(SerializedInfo, #c{} = C) ->
-  #c{num_values = NumValues, num_nulls = NumNulls} = C,
+  #c{ num_values = NumValues
+    , num_nulls = NumNulls
+    , primitive_type = PrimitiveType
+    } = C,
   #{ ?uncompressed_size := ColDataBinSize
    , ?compressed_size := ColDataBinCompSize
    , ?def_level_bin := DefLevelBin
@@ -701,6 +712,7 @@ serialize_data_page_v2(SerializedInfo, #c{} = C) ->
   ValueEncoding =
     case IsDictEnabled of
       true -> ?ENCODING_PLAIN_DICT;
+      false when PrimitiveType == ?BOOLEAN -> ?ENCODING_RLE;
       false -> ?ENCODING_PLAIN
     end,
   DataPageHeader = parquer_thrift_utils:data_page_header_v2(#{

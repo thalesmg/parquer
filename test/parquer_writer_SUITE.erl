@@ -231,6 +231,92 @@ t_smoke_binary_repeated(TCConfig) when is_list(TCConfig) ->
      Reference),
   ok.
 
+t_smoke_boolean_optional() ->
+  [{matrix, true}].
+t_smoke_boolean_optional(matrix) ->
+  [ [Dict, DataPage]
+  || Dict <- [?dict_enabled, ?dict_disabled],
+     DataPage <- [?data_page_v1, ?data_page_v2]
+  ];
+t_smoke_boolean_optional(TCConfig) when is_list(TCConfig) ->
+  Schema = single_field_schema(?REPETITION_OPTIONAL, bool),
+  Opts = opts_of(TCConfig),
+  Writer0 = parquer_writer:new(Schema, Opts),
+  Records = [
+    #{?F0 => false},
+    #{},
+    #{?F0 => true}
+  ],
+  Parquet = write_and_close(Writer0, Records),
+  Reference = query_oracle(Parquet, TCConfig),
+  ?assertMatch(
+     [ #{?F0 := false}
+     , #{?F0 := null}
+     , #{?F0 := true}
+     ],
+     Reference),
+  ok.
+
+t_smoke_boolean_required() ->
+  [{matrix, true}].
+t_smoke_boolean_required(matrix) ->
+  [ [Dict, DataPage]
+  || Dict <- [?dict_enabled, ?dict_disabled],
+     DataPage <- [?data_page_v1, ?data_page_v2]
+  ];
+t_smoke_boolean_required(TCConfig) when is_list(TCConfig) ->
+  Schema = single_field_schema(?REPETITION_REQUIRED, bool),
+  Opts = opts_of(TCConfig),
+  Writer0 = parquer_writer:new(Schema, Opts),
+  Records = [
+    #{?F0 => false},
+    #{?F0 => true}
+  ],
+  Parquet = write_and_close(Writer0, Records),
+  Reference = query_oracle(Parquet, TCConfig),
+  ?assertMatch(
+     [ #{?F0 := false}
+     , #{?F0 := true}
+     ],
+     Reference),
+  ok.
+
+t_smoke_boolean_repeated() ->
+  [{matrix, true}].
+t_smoke_boolean_repeated(matrix) ->
+  [ [Dict, DataPage]
+  || Dict <- [?dict_enabled, ?dict_disabled],
+     DataPage <- [?data_page_v1, ?data_page_v2]
+  ];
+t_smoke_boolean_repeated(TCConfig) when is_list(TCConfig) ->
+  Schema =
+    parquer_schema:root(
+      <<"root">>,
+      [parquer_schema:group(
+         ?F0, ?REPETITION_REQUIRED,
+         #{?converted_type => ?CONVERTED_TYPE_LIST},
+         [parquer_schema:group(
+            <<"array">>, ?REPETITION_REPEATED,
+            [parquer_schema:bool(?F1, ?REPETITION_OPTIONAL)])])]),
+  Opts = opts_of(TCConfig),
+  Writer0 = parquer_writer:new(Schema, Opts),
+  Records = [
+    #{?F0 => [#{?F1 => false}, #{?F1 => true}]},
+    #{?F0 => []},
+    #{?F0 => ?undefined},
+    #{?F0 => [#{?F1 => true}, #{}]}
+  ],
+  Parquet = write_and_close(Writer0, Records),
+  Reference = query_oracle(Parquet, TCConfig),
+  ?assertMatch(
+     [ #{?F0 := [#{?F1 := false}, #{?F1 := true}]}
+     , #{?F0 := []}
+     , #{?F0 := []}
+     , #{?F0 := [#{?F1 := true}, #{?F1 := null}]}
+     ],
+     Reference),
+  ok.
+
 %%%_* Emacs ====================================================================
 %%% Local Variables:
 %%% erlang-indent-level: 2
