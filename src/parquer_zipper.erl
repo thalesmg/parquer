@@ -274,7 +274,7 @@ down(#zipper{path = []}) ->
 down(#zipper{node = Node, path = [{Key, ?REPETITION_REQUIRED} = KR | KeyRest], context = C0} = Z0) ->
   case Node of
     ?undefined ->
-      raise_missing_value(Z0, KR, []);
+      raise_missing_value(Z0, KR, Node);
     #{Key := ?undefined = InnerNode} ->
       %% They key itself is defined.
       C1 = push_context_down(Node, KR, [], C0),
@@ -291,7 +291,7 @@ down(#zipper{node = Node, path = [{Key, ?REPETITION_REQUIRED} = KR | KeyRest], c
         context = C1
       };
     #{} ->
-      raise_missing_value(Z0, KR, []);
+      raise_missing_value(Z0, KR, Node);
     _ ->
       raise_unexpected_value(Z0, KR, Node)
   end;

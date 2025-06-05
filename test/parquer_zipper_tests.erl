@@ -327,6 +327,76 @@ list_1_test_() ->
                  #{}]}))
   ].
 
+next_at_end_test() ->
+  F0 = <<"f0">>,
+  Col = [{F0, ?REPETITION_OPTIONAL}],
+  Z0 = parquer_zipper:new(Col, #{}),
+  Z1 = parquer_zipper:next(Z0),
+  ?assertEqual({0, 0, ?undefined}, parquer_zipper:read(Z1)),
+  Z2 = parquer_zipper:next(Z1),
+  ?assertEqual(false, parquer_zipper:read(Z2)),
+  Z3 = parquer_zipper:next(Z2),
+  ?assertEqual(false, parquer_zipper:read(Z3)),
+  ok.
+
+unexpected_values_test_() ->
+  F0 = <<"f0">>,
+  WeirdValue = make_ref(),
+  [ { atom_to_list(Repetition)
+    , ?_assertError(
+         #{ reason := unexpected_value
+          , value := WeirdValue
+          , path := [_]
+          },
+         parquer_zipper:flatten([{F0, Repetition}], WeirdValue))
+    }
+  || Repetition <- [?REPETITION_OPTIONAL, ?REPETITION_REPEATED, ?REPETITION_REQUIRED]
+  ].
+
+missing_values_test_() ->
+  F0 = <<"f0">>,
+  F1 = <<"f1">>,
+  F2 = <<"f2">>,
+  Col0 = [{F0, ?REPETITION_REQUIRED}],
+  Col1 = [{F0, ?REPETITION_REQUIRED}, {F1, ?REPETITION_REQUIRED}],
+  [ { "null while required"
+    , ?_assertError(
+         #{ reason := missing_required_value
+          , value := ?undefined
+          , path := [_]
+          },
+         parquer_zipper:flatten(Col0, ?undefined))
+    }
+  , { "required key missing"
+    , ?_assertError(
+         #{ reason := missing_required_value
+          , value := #{F1 := true}
+          , path := [_]
+          },
+         parquer_zipper:flatten(Col0, #{F1 => true}))
+    }
+  , { "required key missing (deep)"
+    , ?_assertError(
+         #{ reason := missing_required_value
+          , value := #{<<"f2">> := false}
+          , path := [_, _]
+          },
+         parquer_zipper:flatten(Col1, #{F0 => #{F2 => false}}))
+    }
+  ].
+
+repeated_test_() ->
+  F0 = <<"f0">>,
+  Col0 = [{F0, ?REPETITION_REPEATED}],
+  [ { "key's value is null"
+    , ?_assertEqual(
+        [{0, 0, ?undefined}],
+        parquer_zipper:flatten(
+          Col0,
+          #{F0 => ?undefined}))
+    }
+  ].
+
 %%%_* Emacs ====================================================================
 %%% Local Variables:
 %%% erlang-indent-level: 2
