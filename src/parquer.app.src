@@ -5,7 +5,10 @@
     {registered, []},
     {applications, [
         kernel,
-        stdlib
+        stdlib,
+        thrift,
+        ezstd,
+        snappyer
     ]},
     {env, []},
     {modules, []},

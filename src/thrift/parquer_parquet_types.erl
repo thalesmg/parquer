@@ -847,3 +847,5 @@ enum_names() ->
 exception_names() ->
   [].
 
+-dialyzer(no_improper_lists).
+-dialyzer({nowarn_function, struct_info_ext/1}).

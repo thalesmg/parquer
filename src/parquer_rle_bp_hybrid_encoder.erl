@@ -231,6 +231,7 @@ end_previous_bit_packed_run(S0) ->
     bit_packed_group_count = 0
    }.
 
+-dialyzer([{no_improper_lists, write_rle_run/1}]).
 write_rle_run(S0) ->
   %% we may have been working on a bit-packed-run so close that run if it exists before
   %% writing this rle-run

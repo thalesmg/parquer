@@ -388,7 +388,7 @@ do_close(#writer{} = Writer0) ->
   FMDBinSize = iolist_size(FMDBin),
   {[IOData0, FMDBin, encode_data_size(FMDBinSize), ?MAGIC_NOT_ENCRYPTED], WriteMetaOut}.
 
--spec maybe_emit_row_group(t()) -> {iodata(), write_metadata(), t()}.
+-spec maybe_emit_row_group(t()) -> {iodata(), [write_metadata()], t()}.
 maybe_emit_row_group(#writer{} = Writer0) ->
   EstimatedByteSize =
     lists:foldl(
