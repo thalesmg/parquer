@@ -36,6 +36,7 @@
 -define(dict_disabled, dict_disabled).
 -define(dict_enabled, dict_enabled).
 -define(enable_dictionary, enable_dictionary).
+-define(max_row_group_bytes, max_row_group_bytes).
 
 %%------------------------------------------------------------------------------
 %% CT boilerplate
@@ -152,6 +153,11 @@ smoke_repeated_schema1(Type, Opts) ->
           <<"array">>, ?REPETITION_REPEATED,
           [parquer_schema:Type(?F1, ?REPETITION_OPTIONAL, Opts)])])]).
 
+smoke_schema1(?REPETITION_REPEATED, Type, Opts) ->
+  smoke_repeated_schema1(Type, Opts);
+smoke_schema1(Repetition, Type, Opts) ->
+  single_field_schema(Repetition, Type, Opts).
+
 %% Apparently, `AvroParquetReader` with `parquet.avro.readInt96AsFixed=true` reads this
 %% deprecated type like this.
 reader_int96(I) ->
@@ -207,6 +213,14 @@ types1() ->
 
 get_matrix_type_opts(TypeGroup) ->
   parquer_test_utils:get_matrix_params(?MODULE, TypeGroup, #{}).
+
+group_path(TCConfig, Default) ->
+  case parquer_test_utils:group_path(TCConfig) of
+    [] ->
+      Default;
+    Path ->
+      Path
+  end.
 
 %%------------------------------------------------------------------------------
 %% Test cases
@@ -480,6 +494,64 @@ t_smoke_types_repeated(TCConfig) when is_list(TCConfig) ->
      #{ expected => EVs
       , inputs__ => Vs
       }),
+  ok.
+
+t_multiple_row_groups_1_column() ->
+  [{matrix, true}].
+t_multiple_row_groups_1_column(matrix) ->
+  [ [Repetition, Type, Dict, DataPage]
+  || Repetition <- [?REPETITION_OPTIONAL, ?REPETITION_REQUIRED, ?REPETITION_REPEATED],
+     Dict <- [?dict_enabled, ?dict_disabled],
+     DataPage <- [?data_page_v1, ?data_page_v2],
+     Type <- types1()
+  ];
+t_multiple_row_groups_1_column(TCConfig) when is_list(TCConfig) ->
+  [Repetition, TypeGroup | _] =
+    group_path(
+      TCConfig,
+      [?REPETITION_REQUIRED, int32, ?dict_disabled, ?data_page_v1]),
+  #{values := [V0, V1, V2 | _] = Vs} = SVs =
+    smoke_values1(TypeGroup),
+  Type = maps:get(type, SVs, TypeGroup),
+  [EV0, EV1, EV2 | _] = EVs = maps:get(roundtrip_values, SVs, Vs),
+  TypeOpts = get_matrix_type_opts(TypeGroup),
+  Schema = smoke_schema1(Repetition, Type, TypeOpts),
+  Opts0 = opts_of(TCConfig),
+  Opts = Opts0#{?max_row_group_bytes => 1},
+  Writer0 = parquer_writer:new(Schema, Opts),
+  %% Each record shall go into an individual row group
+  Records =
+    lists:map(
+      fun(V) when Repetition == ?REPETITION_REPEATED ->
+           #{?F0 => [#{?F1 => V}]};
+         (V) ->
+           #{?F0 => V}
+      end,
+      [V0, V1, V2]),
+  Parquet = write_and_close(Writer0, Records),
+  Reference = query_oracle(Parquet, TCConfig),
+  case Repetition of
+    ?REPETITION_REPEATED ->
+      ?assertEqual(
+        [ #{?F0 => [#{?F1 => EV0}]}
+        , #{?F0 => [#{?F1 => EV1}]}
+        , #{?F0 => [#{?F1 => EV2}]}
+        ],
+        Reference,
+        #{ expected => EVs
+         , inputs__ => Vs
+         });
+    _ ->
+      ?assertEqual(
+        [ #{?F0 => EV0}
+        , #{?F0 => EV1}
+        , #{?F0 => EV2}
+        ],
+        Reference,
+        #{ expected => EVs
+         , inputs__ => Vs
+         })
+  end,
   ok.
 
 %%%_* Emacs ====================================================================

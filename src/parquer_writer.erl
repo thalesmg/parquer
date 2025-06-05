@@ -50,6 +50,7 @@
 -define(data_page_header_version, data_page_header_version).
 -define(def_level_bin, def_level_bin).
 -define(enable_dictionary, enable_dictionary).
+-define(max_row_group_bytes, max_row_group_bytes).
 -define(num_dict_keys, num_dict_keys).
 -define(path, path).
 -define(rep_level_bin, rep_level_bin).
@@ -151,7 +152,8 @@ new(Schema, #{} = Opts0) ->
   DefaultOpts = #{
     ?default_compression => {?DEFAULT_COMPRESSION, ?DEFAULT_COMPRESSION_OPTS},
     ?enable_dictionary => true,
-    ?data_page_header_version => 1
+    ?data_page_header_version => 1,
+    ?max_row_group_bytes => ?DEFAULT_MAX_ROW_GROUP_BYTES
   },
   Opts = maps:merge(DefaultOpts, Opts0),
   FlatSchema = parquer_schema:flatten(Schema),
@@ -393,8 +395,8 @@ maybe_emit_row_group(#writer{} = Writer0) ->
       fun(C, Acc) -> estimate_byte_size(C) + Acc end,
       0,
       Writer0#writer.columns),
-  %% TODO: make configurable
-  case EstimatedByteSize >= ?DEFAULT_MAX_ROW_GROUP_BYTES of
+  MaxRowGroupBytes = max_row_group_bytes(Writer0),
+  case EstimatedByteSize >= MaxRowGroupBytes of
     true ->
       close_row_group(Writer0);
     false ->
@@ -442,7 +444,7 @@ maybe_emit_magic(#writer{offset = 0} = Writer0) ->
   %% File just started.
   emit_magic(Writer0);
 maybe_emit_magic(#writer{} = Writer) ->
-  Writer.
+  {[], Writer}.
 
 emit_magic(#writer{} = Writer0) ->
   Writer = Writer0#writer{offset = byte_size(?MAGIC_NOT_ENCRYPTED)},
@@ -893,6 +895,9 @@ data_page_header_version(KeyPath, Opts) ->
     _ ->
       ?DEFAULT_DATA_HEADER_VSN
   end.
+
+max_row_group_bytes(#writer{opts = #{?max_row_group_bytes := MaxRowGroupBytes}}) ->
+  MaxRowGroupBytes.
 
 %%%_* Emacs ====================================================================
 %%% Local Variables:
