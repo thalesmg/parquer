@@ -1,0 +1,40 @@
+# `parquer` - write [Parquet](https://parquet.apache.org/) files with pure Erlang
+
+## Installation
+
+Rebar3:
+
+```erlang
+{parquer, {git, "https://github.com/emqx/parquer.git", {tag, "0.1.0"}}}
+```
+
+Mix:
+
+```elixir
+{:parquer, github: "emqx/parquer", tag: "0.1.0", manager: :rebar3}}
+```
+
+## Quick start
+
+```erlang
+%% Define a schema
+Schema =
+  parquer_schema:root(
+    <<"root">>,
+    [ parquer_schema:string(<<"f0">>, optional)
+    , parquer_schema:bool(<<"f1">>, required)
+    ]).
+%% Create a writer
+Writer0 = parquer_writer:new(Schema, _WriterOpts = #{}).
+%% Append records
+{IOData1, _WriteMetadata1, Writer1} =
+  parquer_writer:write_many(Writer0, [
+    #{<<"f0">> => <<"hello">>, <<"f1">> => true},
+    #{<<"f0">> => undefined, <<"f1">> => false}
+    #{<<"f0">> => <<"world!">>, <<"f1">> => false}
+  ]).
+%% Finish writing
+{IOData2, _WriteMetadata2} = parquer_writer:close(Writer1).
+%% Save data to a file
+file:write_file("/tmp/data.parquet", [IOData1, IOData2]).
+```
