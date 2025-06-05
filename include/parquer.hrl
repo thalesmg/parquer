@@ -36,6 +36,7 @@
 
 %% Logical type names
 -define(lt_string, string).
+-define(lt_list, list).
 
 %% Converted types
 -define(CONVERTED_TYPE_UTF8, utf8).

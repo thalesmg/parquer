@@ -29,6 +29,7 @@
 
 -define(F0, <<"f0">>).
 -define(F1, <<"f1">>).
+-define(F2, <<"f2">>).
 
 -define(data_page_header_version, data_page_header_version).
 -define(data_page_v1, data_page_v1).
@@ -123,7 +124,8 @@ opts_of(TCConfig) ->
     #{},
     parquer_test_utils:group_path(TCConfig)).
 
-%% N.B.: Java implementation does not like a repeated field that is not a group.
+%% N.B.: Java implementation does not like a repeated field that is not a group (at least
+%% of string type).
 %%
 %% e.g.:
 %%   Execution error (ClassCastException) at org.apache.parquet.schema.Type/asGroupType
@@ -552,6 +554,41 @@ t_multiple_row_groups_1_column(TCConfig) when is_list(TCConfig) ->
          , inputs__ => Vs
          })
   end,
+  ok.
+
+t_multiple_columns() ->
+  [{matrix, true}].
+t_multiple_columns(matrix) ->
+  [ [Dict, DataPage]
+  || Dict <- [?dict_enabled, ?dict_disabled],
+     DataPage <- [?data_page_v1, ?data_page_v2]
+  ];
+t_multiple_columns(TCConfig) when is_list(TCConfig) ->
+  Schema =
+    parquer_schema:root(
+      <<"root">>,
+      [ parquer_schema:list(?F0, ?REPETITION_REQUIRED,
+          [parquer_schema:int32(<<"array">>, ?REPETITION_REPEATED)])
+      , parquer_schema:string(?F1, ?REPETITION_OPTIONAL)
+      , parquer_schema:bool(?F2, ?REPETITION_REQUIRED)
+      ]),
+  Opts0 = opts_of(TCConfig),
+  Opts = Opts0#{?max_row_group_bytes => 1},
+  Writer0 = parquer_writer:new(Schema, Opts),
+  Records = [
+    #{?F0 => [0, 1], ?F1 => <<"hi">>, ?F2 => true},
+    #{?F0 => [], ?F1 => ?undefined, ?F2 => false},
+    #{?F0 => [2], ?F1 => <<"world">>, ?F2 => false}
+  ],
+  Parquet = write_and_close(Writer0, Records),
+  Reference = query_oracle(Parquet, TCConfig),
+  ?assertEqual(
+     [
+       #{?F0 => [0, 1], ?F1 => <<"hi">>, ?F2 => true},
+       #{?F0 => [], ?F1 => null, ?F2 => false},
+       #{?F0 => [2], ?F1 => <<"world">>, ?F2 => false}
+     ],
+     Reference),
   ok.
 
 %%%_* Emacs ====================================================================

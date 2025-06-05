@@ -990,6 +990,23 @@
    ;; :conf {"parquet.avro.write-old-list-structure" "false"}
    )
 
+  (write-with-avro-schema-to-file
+   (-> (parse-parquet-schema
+        (str
+         "
+           message root {
+             repeated int32 f0;
+             optional binary f1 (STRING);
+           }
+       "))
+       (inspect {:label :parquet>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>})
+       parquet-schema-to-avro
+       (inspect {:label :avro>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>}))
+   [{"f0" [1] "f1" "oi"}]
+   "bbb.parquet"
+   ;; :conf {"parquet.avro.write-old-list-structure" "false"}
+   )
+
   (with-open [in (io/input-stream "bbb.parquet")
               out (java.io.ByteArrayOutputStream.)]
     (io/copy in out)

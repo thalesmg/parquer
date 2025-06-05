@@ -64,6 +64,7 @@
   columns,
   has_data = false,
   num_rows = 0,
+  total_num_rows = 0,
   offset = 0,
   opts
 }).
@@ -182,7 +183,12 @@ write(#writer{} = Writer0, Record) ->
   Cols = lists:map(
     fun(C) -> append_to_column(C, Record) end,
     Writer0#writer.columns),
-  Writer1 = Writer0#writer{has_data = true, columns = Cols},
+  Writer1 = Writer0#writer{
+    has_data = true,
+    num_rows = Writer0#writer.num_rows + 1,
+    total_num_rows = Writer0#writer.total_num_rows + 1,
+    columns = Cols
+  },
   maybe_emit_row_group(Writer1).
 
 -spec close(t()) -> {iodata(), [write_metadata()]}.
@@ -196,7 +202,7 @@ close(#writer{} = Writer) ->
 inspect(#writer{} = W) ->
   #{
     schema => W#writer.schema,
-    closed_row_groups => W#writer.closed_row_groups,
+    closed_row_groups => lists:reverse(W#writer.closed_row_groups),
     columns => lists:map(fun inspect/1, W#writer.columns),
     has_data => W#writer.has_data,
     num_rows => W#writer.num_rows,
@@ -415,26 +421,26 @@ close_row_group(#writer{} = Writer0) ->
       Writer1,
       Writer1#writer.columns),
   {IOData, WriteMetas, ColumnChunks} = lists:unzip3(IODataMetaAndChunks),
-  {NumRows, TotalUncompSize, TotalCompSize} =
+  {TotalUncompSize, TotalCompSize} =
     lists:foldl(
-      fun(WriteMeta, {RowsAcc, UncompAcc, CompAcc}) ->
+      fun(WriteMeta, {UncompAcc, CompAcc}) ->
           {
-           RowsAcc + WriteMeta#write_meta.num_rows,
            UncompAcc + WriteMeta#write_meta.total_uncompressed_size,
            CompAcc + WriteMeta#write_meta.total_compressed_size
           }
       end,
-      {0, 0, 0},
+      {0, 0},
       WriteMetas),
   RowGroup = parquer_thrift_utils:row_group(#{
     ?column_chunks => ColumnChunks,
     ?total_uncompressed_size => TotalUncompSize,
     ?total_compressed_size => TotalCompSize,
-    ?num_rows => NumRows
+    ?num_rows => Writer2#writer.num_rows
   }),
   Writer3 = Writer2#writer{
+    has_data = false,
+    num_rows = 0,
     columns = initialize_columns(Writer2#writer.schema, Writer2#writer.opts),
-    num_rows = Writer2#writer.num_rows + NumRows,
     closed_row_groups = [RowGroup | Writer2#writer.closed_row_groups]
   },
   WriteMetasOut = lists:map(fun write_metadata_out/1, WriteMetas),

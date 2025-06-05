@@ -926,4 +926,29 @@ defmodule Parquer do
     |> elem(0)
     |> then(&File.write!("./aaa.parquet", &1))
   end
+
+  def test_multiple_columns() do
+    :parquer_schema.root(
+      "root",
+      [ :parquer_schema.list("f0", :required,
+          [:parquer_schema.int32("array", :repeated)]),
+        :parquer_schema.string("f1", :optional),
+        :parquer_schema.bool("f2", :required),
+      ])
+    |> :parquer_writer.new(%{max_row_group_bytes: 1})
+    |> tap(& &1 |> :parquer_writer.inspect() |> IO.inspect())
+    |> :parquer_writer.write_many(
+      [
+        %{"f0" => [0, 1], "f1" => "hi", "f2" => true},
+        %{"f0" => [], "f1" => :undefined, "f2" => false},
+        %{"f0" => [2], "f1" => "world", "f2" => false},
+      ]
+    )
+    |> tap(&File.write!("./aaa.parquet", &1 |> elem(0)))
+    |> elem(2)
+    |> tap(& &1 |> :parquer_writer.inspect() |> IO.inspect())
+    |> :parquer_writer.close()
+    |> elem(0)
+    |> then(&File.write!("./aaa.parquet", &1, [:append]))
+  end
 end

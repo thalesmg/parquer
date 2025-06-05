@@ -32,6 +32,8 @@
   string/3,
   binary/2,
   binary/3,
+  list/3,
+  list/4,
 
   %% Primitive types
   bool/2,
@@ -134,6 +136,18 @@ binary(Name, Repetition) ->
 binary(Name, Repetition, #{} = Opts) ->
   byte_array(Name, Repetition, Opts).
 
+list(Name, ListRepetition, Fields) ->
+  list(Name, ListRepetition, _Opts = #{}, Fields).
+list(Name, ListRepetition, Opts0, Fields) when
+    ListRepetition == ?REPETITION_OPTIONAL;
+    ListRepetition == ?REPETITION_REQUIRED
+->
+  Opts = Opts0#{
+    ?logical_type => lt_list(),
+    ?converted_type => ?CONVERTED_TYPE_LIST
+  },
+  group(Name, ListRepetition, Opts, Fields).
+
 %%------------------------------------------------------------------------------
 %% Primitive types
 %%------------------------------------------------------------------------------
@@ -184,6 +198,9 @@ fixed_len_byte_array(Name, Repetition, Opts) ->
 
 lt_string() ->
   #{?name => ?lt_string}.
+
+lt_list() ->
+  #{?name => ?lt_list}.
 
 do_flatten(#{?fields := Fields} = Type, Context0) ->
   #{ ?path := Path
