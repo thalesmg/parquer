@@ -125,6 +125,136 @@ next(#zipper{path = KeyRepetitions, context = Context} = Z0) ->
       end
   end.
 
+%%------------------------------------------------------------------------------
+%% Debug only
+%%------------------------------------------------------------------------------
+
+inspect(#zipper{} = Z) ->
+  #zipper{
+    node = Node,
+    definition_level = DefLevel,
+    repetition_level = RepLevel,
+    context = Context,
+    path = Path
+  } = Z,
+  #{
+    node => Node,
+    definition_level => DefLevel,
+    repetition_level => RepLevel,
+    context => Context /= undefined andalso inspect(Context),
+    path => Path
+  };
+inspect(#context{} = C) ->
+  #context{
+    left = Left,
+    right = Right,
+    parent_nodes = PNodes,
+    parent_path = PPath,
+    parent_contexts = PContexts
+  } = C,
+  #{
+    left => Left,
+    right => Right,
+    parent_nodes => PNodes,
+    parent_path => PPath,
+    parent_contexts => lists:map(fun inspect/1, PContexts)
+   }.
+
+%%------------------------------------------------------------------------------
+%% Internal fns
+%%------------------------------------------------------------------------------
+
+-spec deep_down(t()) -> t().
+deep_down(#zipper{} = Z0) ->
+  case down(Z0) of
+    false ->
+      Z0;
+    #zipper{} = Z1 ->
+      deep_down(Z1)
+  end.
+
+push_context_down(PNode, KeyRepetition, Rights, undefined) ->
+  #context{
+    left = [],
+    right = Rights,
+    parent_nodes = [PNode],
+    parent_path = [KeyRepetition],
+    parent_contexts = []
+  };
+push_context_down(PNode, KeyRepetition, Rights, Context0) ->
+  #context{
+     parent_nodes = PNodes0,
+     parent_path = PPath0,
+     parent_contexts = PContexts
+    } = Context0,
+  #context{
+    left = [],
+    right = Rights,
+    parent_nodes = [PNode | PNodes0],
+    parent_path = [KeyRepetition | PPath0],
+    parent_contexts = [Context0 | PContexts]
+  }.
+
+definition_level_of(?REPETITION_REQUIRED) -> 0;
+definition_level_of(_) -> 1.
+
+repetition_level_of(?REPETITION_REPEATED) -> 1;
+repetition_level_of(_) -> 0.
+
+definition_level(Path) ->
+  lists:sum([definition_level_of(Repetition) || {_Key, Repetition} <- Path]).
+
+repetition_level(#context{parent_path = PPath}) ->
+  repetition_level(PPath);
+repetition_level(Path) ->
+  lists:sum([repetition_level_of(Repetition) || {_Key, Repetition} <- Path]).
+
+-spec backtrack(t()) -> t().
+backtrack(Z0) ->
+  case up(Z0) of
+    #zipper{} = Z1 ->
+      case right(Z1) of
+        #zipper{} = Z2 ->
+          deep_down(Z2);
+        false ->
+          backtrack(Z1)
+      end;
+    false ->
+      Z0#zipper{node = ?END}
+  end.
+
+do_flatten(Z0, Acc) ->
+  Z1 = next(Z0),
+  case read(Z1) of
+    false ->
+      lists:reverse(Acc);
+    Res ->
+      do_flatten(Z1, [Res | Acc])
+  end.
+
+raise_missing_value(#zipper{context = C}, KeyRepetition, Value) ->
+  Path0 = parent_path(C),
+  Path = lists:reverse([KeyRepetition | Path0]),
+  Error = #{
+    reason => missing_required_value,
+    path => Path,
+    value => Value
+  },
+  error(Error).
+
+raise_unexpected_value(#zipper{context = C}, KeyRepetition, Data) ->
+  Path0 = parent_path(C),
+  Path = lists:reverse([KeyRepetition | Path0]),
+  Error = #{
+    reason => unexpected_value,
+    path => Path,
+    value => Data
+  },
+  error(Error).
+
+parent_path(undefined) -> [];
+parent_path(#context{parent_path = PPath}) -> PPath.
+
 -spec right(t()) -> false | t().
 right(#zipper{node = N, context = #context{right = [R | Rs], left = Ls} = C0} = Z0) ->
   %% Once we move right, need to update repetition level.
@@ -262,139 +392,7 @@ up(#zipper{path = Path, context = #context{parent_nodes = [PNode | _]} = C0} = Z
     definition_level = DefLevel,
     path = [KeyRepetition | Path],
     context = PContext
-  };
-up(#zipper{}) ->
-  false.
-
-%%------------------------------------------------------------------------------
-%% Debug only
-%%------------------------------------------------------------------------------
-
-inspect(#zipper{} = Z) ->
-  #zipper{
-    node = Node,
-    definition_level = DefLevel,
-    repetition_level = RepLevel,
-    context = Context,
-    path = Path
-  } = Z,
-  #{
-    node => Node,
-    definition_level => DefLevel,
-    repetition_level => RepLevel,
-    context => Context /= undefined andalso inspect(Context),
-    path => Path
-  };
-inspect(#context{} = C) ->
-  #context{
-    left = Left,
-    right = Right,
-    parent_nodes = PNodes,
-    parent_path = PPath,
-    parent_contexts = PContexts
-  } = C,
-  #{
-    left => Left,
-    right => Right,
-    parent_nodes => PNodes,
-    parent_path => PPath,
-    parent_contexts => lists:map(fun inspect/1, PContexts)
-   }.
-
-%%------------------------------------------------------------------------------
-%% Internal fns
-%%------------------------------------------------------------------------------
-
--spec deep_down(t()) -> t().
-deep_down(#zipper{} = Z0) ->
-  case down(Z0) of
-    false ->
-      Z0;
-    #zipper{} = Z1 ->
-      deep_down(Z1)
-  end.
-
-push_context_down(PNode, KeyRepetition, Rights, undefined) ->
-  #context{
-    left = [],
-    right = Rights,
-    parent_nodes = [PNode],
-    parent_path = [KeyRepetition],
-    parent_contexts = []
-  };
-push_context_down(PNode, KeyRepetition, Rights, Context0) ->
-  #context{
-     parent_nodes = PNodes0,
-     parent_path = PPath0,
-     parent_contexts = PContexts
-    } = Context0,
-  #context{
-    left = [],
-    right = Rights,
-    parent_nodes = [PNode | PNodes0],
-    parent_path = [KeyRepetition | PPath0],
-    parent_contexts = [Context0 | PContexts]
   }.
-
-definition_level_of(?REPETITION_REQUIRED) -> 0;
-definition_level_of(_) -> 1.
-
-repetition_level_of(?REPETITION_REPEATED) -> 1;
-repetition_level_of(_) -> 0.
-
-definition_level(Path) ->
-  lists:sum([definition_level_of(Repetition) || {_Key, Repetition} <- Path]).
-
-repetition_level(#context{parent_path = PPath}) ->
-  repetition_level(PPath);
-repetition_level(Path) ->
-  lists:sum([repetition_level_of(Repetition) || {_Key, Repetition} <- Path]).
-
--spec backtrack(t()) -> t().
-backtrack(Z0) ->
-  case up(Z0) of
-    #zipper{} = Z1 ->
-      case right(Z1) of
-        #zipper{} = Z2 ->
-          deep_down(Z2);
-        false ->
-          backtrack(Z1)
-      end;
-    false ->
-      Z0#zipper{node = ?END}
-  end.
-
-do_flatten(Z0, Acc) ->
-  Z1 = next(Z0),
-  case read(Z1) of
-    false ->
-      lists:reverse(Acc);
-    Res ->
-      do_flatten(Z1, [Res | Acc])
-  end.
-
-raise_missing_value(#zipper{context = C}, KeyRepetition, Value) ->
-  Path0 = parent_path(C),
-  Path = lists:reverse([KeyRepetition | Path0]),
-  Error = #{
-    reason => missing_required_value,
-    path => Path,
-    value => Value
-  },
-  error(Error).
-
-raise_unexpected_value(#zipper{context = C}, KeyRepetition, Data) ->
-  Path0 = parent_path(C),
-  Path = lists:reverse([KeyRepetition | Path0]),
-  Error = #{
-    reason => unexpected_value,
-    path => Path,
-    value => Data
-  },
-  error(Error).
-
-parent_path(undefined) -> [];
-parent_path(#context{parent_path = PPath}) -> PPath.
 
 %% recompile() ;  [a: :repated, b: :repeated] |> :parquer_zipper.new([[1,2,3], [4,5]]) |> then(fn z -> 1..7 |> Enum.map_reduce(z, fn _, z -> {:parquer_zipper.read(z), :parquer_zipper.next(z) |> IO.inspect()} end) end)
 
