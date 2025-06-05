@@ -18,7 +18,8 @@
 %% API
 -export([
   new/2,
-  append_records/2,
+  write/2,
+  write_many/2,
   close/1
 ]).
 
@@ -157,18 +158,29 @@ new(Schema, #{} = Opts0) ->
   Columns = initialize_columns(FlatSchema, Opts),
   #writer{schema = FlatSchema, columns = Columns, opts = Opts}.
 
--spec append_records(t(), [data()]) -> {iodata(), [write_metadata()], t()}.
-append_records(#writer{} = Writer0, Records) when is_list(Records) ->
-  Writer1 =
-    lists:foldl(
-      fun(Record, WriterAcc) ->
-          Cols = lists:map(
-            fun(C) -> append_to_column(C, Record) end,
-            WriterAcc#writer.columns),
-          WriterAcc#writer{has_data = true, columns = Cols}
-      end,
-      Writer0,
-      Records),
+-spec write_many(t(), [data()]) -> {iodata(), [write_metadata()], t()}.
+write_many(#writer{} = Writer0, Records) when is_list(Records) ->
+  {IOData, RevWriteMeta, Writer} = lists:foldl(
+    fun(Record, {IOAcc0, WMetaAcc0, WAcc0}) ->
+        {IO, WMeta, WAcc} = write(WAcc0, Record),
+        WMetaAcc = lists:reverse(WMeta, WMetaAcc0),
+        IOAcc = case IO of
+          [] -> IOAcc0;
+          _ -> [IOAcc0, IO]
+        end,
+        {IOAcc, WMetaAcc, WAcc}
+    end,
+    {[], [], Writer0},
+    Records
+   ),
+  {IOData, lists:reverse(RevWriteMeta), Writer}.
+
+-spec write(t(), data()) -> {iodata(), [write_metadata()], t()}.
+write(#writer{} = Writer0, Record) ->
+  Cols = lists:map(
+    fun(C) -> append_to_column(C, Record) end,
+    Writer0#writer.columns),
+  Writer1 = Writer0#writer{has_data = true, columns = Cols},
   maybe_emit_row_group(Writer1).
 
 -spec close(t()) -> {iodata(), [write_metadata()]}.
