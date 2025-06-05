@@ -37,6 +37,20 @@
 %% Logical type names
 -define(lt_string, string).
 -define(lt_list, list).
+-define(lt_map, map).
+-define(lt_enum, enum).
+-define(lt_date, date).
+-define(lt_uuid, uuid).
+-define(lt_unknown, unknown).
+-define(lt_json, json).
+-define(lt_bson, bson).
+-define(lt_float16, float16).
+-define(lt_time, time).
+-define(lt_timestamp, timestamp).
+-define(lt_int, int).
+-define(lt_variant, variant).
+-define(lt_geometry, geometry).
+-define(lt_geography, geography).
 
 %% Converted types
 -define(CONVERTED_TYPE_UTF8, utf8).
@@ -45,10 +59,15 @@
 
 -define(undefined, undefined).
 
+-define(algorithm, algorithm).
+-define(bit_width, bit_width).
 -define(converted_type, converted_type).
+-define(crs, crs).
 -define(default_compression, default_compression).
 -define(fields, fields).
 -define(id, id).
+-define(is_adjusted_to_utc, is_adjusted_to_utc).
+-define(is_signed, is_signed).
 -define(logical_type, logical_type).
 -define(max_definition_level, max_definition_level).
 -define(max_repetition_level, max_repetition_level).
@@ -60,7 +79,9 @@
 -define(offset, offset).
 -define(primitive_type, primitive_type).
 -define(repetition, repetition).
+-define(specification_version, specification_version).
 -define(type_length, type_length).
+-define(unit, unit).
 
 -define(COMPRESSION_NONE, none).
 -define(COMPRESSION_SNAPPY, snappy).

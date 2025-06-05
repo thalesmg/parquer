@@ -204,7 +204,55 @@ codec_of(?COMPRESSION_SNAPPY) -> ?Parquer_parquet_CompressionCodec_SNAPPY.
 
 logical_type_of(?undefined) -> ?undefined;
 logical_type_of(#{?name := ?lt_string}) -> #'logicalType'{sTRING = #'stringType'{}};
-logical_type_of(#{?name := ?lt_list}) -> #'logicalType'{lIST = #'listType'{}}.
+logical_type_of(#{?name := ?lt_list}) -> #'logicalType'{lIST = #'listType'{}};
+logical_type_of(#{?name := ?lt_map}) -> #'logicalType'{mAP = #'mapType'{}};
+logical_type_of(#{?name := ?lt_enum}) -> #'logicalType'{eNUM = #'enumType'{}};
+logical_type_of(#{?name := ?lt_date}) -> #'logicalType'{dATE = #'dateType'{}};
+logical_type_of(#{?name := ?lt_uuid}) -> #'logicalType'{uUID = #'uUIDType'{}};
+logical_type_of(#{?name := ?lt_unknown}) -> #'logicalType'{uNKNOWN = #'nullType'{}};
+logical_type_of(#{?name := ?lt_json}) -> #'logicalType'{jSON = #'jsonType'{}};
+logical_type_of(#{?name := ?lt_bson}) -> #'logicalType'{bSON = #'bsonType'{}};
+logical_type_of(#{?name := ?lt_float16}) -> #'logicalType'{fLOAT16 = #'float16Type'{}};
+logical_type_of(#{?name := ?lt_time, ?unit := Unit, ?is_adjusted_to_utc := IsAdjusted}) ->
+  #'logicalType'{
+     tIME =
+       #'timeType'{ isAdjustedToUTC = IsAdjusted
+                  , unit = Unit
+                  }
+  };
+logical_type_of(#{?name := ?lt_timestamp, ?unit := Unit, ?is_adjusted_to_utc := IsAdjusted}) ->
+  #'logicalType'{
+     tIMESTAMP =
+       #'timestampType'{ isAdjustedToUTC = IsAdjusted
+                       , unit = Unit
+                       }
+  };
+logical_type_of(#{?name := ?lt_int, ?bit_width := BitWidth, ?is_signed := IsSigned}) ->
+  #'logicalType'{
+     iNTEGER =
+       #'intType'{ bitWidth = BitWidth
+                 , isSigned = IsSigned
+                 }
+  };
+logical_type_of(#{?name := ?lt_variant} = T) ->
+  SpecificationVersion = maps:get(?specification_version, T, ?undefined),
+  #'logicalType'{
+     vARIANT =
+       #'variantType'{specification_version = SpecificationVersion}
+  };
+logical_type_of(#{?name := ?lt_geometry} = T) ->
+  CRS = maps:get(?crs, T, ?undefined),
+  #'logicalType'{
+     gEOMETRY =
+       #'geometryType'{crs = CRS}
+  };
+logical_type_of(#{?name := ?lt_geography} = T) ->
+  Algorithm = maps:get(?algorithm, T, ?undefined),
+  CRS = maps:get(?crs, T, ?undefined),
+  #'logicalType'{
+     gEOGRAPHY =
+       #'geographyType'{crs = CRS, algorithm = Algorithm}
+  }.
 
 %%%_* Emacs ====================================================================
 %%% Local Variables:
