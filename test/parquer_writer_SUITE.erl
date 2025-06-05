@@ -118,6 +118,12 @@ opts_of(TCConfig) ->
          Acc#{?data_page_header_version => 1};
        (?data_page_v2, Acc) ->
          Acc#{?data_page_header_version => 2};
+       (compression_none, Acc) ->
+         Acc#{?default_compression => {?COMPRESSION_NONE, #{}}};
+       (compression_zstd, Acc) ->
+         Acc#{?default_compression => {?COMPRESSION_ZSTD, #{}}};
+       (compression_snappy, Acc) ->
+         Acc#{?default_compression => {?COMPRESSION_SNAPPY, #{}}};
        (_, Acc) ->
          Acc
     end,
@@ -212,6 +218,9 @@ smoke_values1("fixed_len_byte_array" ++ _) ->
 %% Type matrix for `t_smoke_types_*` tests.
 types1() ->
   [int32, int64, int96, float, double, {fixed_len_byte_array, #{type_length => 3}}].
+
+compressions() ->
+  [compression_none, compression_zstd, compression_snappy].
 
 get_matrix_type_opts(TypeGroup) ->
   parquer_test_utils:get_matrix_params(?MODULE, TypeGroup, #{}).
@@ -589,6 +598,50 @@ t_multiple_columns(TCConfig) when is_list(TCConfig) ->
        #{?F0 => [2], ?F1 => <<"world">>, ?F2 => false}
      ],
      Reference),
+  ok.
+
+t_duplicate_values_with_dict() ->
+  [{matrix, true}].
+t_duplicate_values_with_dict(matrix) ->
+  [ [DataPage]
+  || DataPage <- [?data_page_v1, ?data_page_v2]
+  ];
+t_duplicate_values_with_dict(TCConfig) when is_list(TCConfig) ->
+  Schema = smoke_schema1(?REPETITION_REQUIRED, string, _TypeOpts = #{}),
+  Opts0 = opts_of(TCConfig),
+  Opts = Opts0#{?enable_dictionary => true},
+  Writer0 = parquer_writer:new(Schema, Opts),
+  Records = [
+    #{?F0 => <<"hi">>},
+    #{?F0 => <<"hi">>},
+    #{?F0 => <<"world">>},
+    #{?F0 => <<"hi">>}
+  ],
+  {IO0, _, Writer1} = parquer_writer:write_many(Writer0, Records),
+  {IO1, _} = parquer_writer:close(Writer1),
+  Reference = query_oracle([IO0, IO1], TCConfig),
+  ?assertEqual(
+     [ #{?F0 => <<"hi">>}
+     , #{?F0 => <<"hi">>}
+     , #{?F0 => <<"world">>}
+     , #{?F0 => <<"hi">>}
+     ],
+     Reference),
+  ok.
+
+t_compressions() ->
+  [{matrix, true}].
+t_compressions(matrix) ->
+  [[Compression] || Compression <- compressions()];
+t_compressions(TCConfig) when is_list(TCConfig) ->
+  Schema = smoke_schema1(?REPETITION_REQUIRED, string, _TypeOpts = #{}),
+  Opts = opts_of(TCConfig),
+  Writer0 = parquer_writer:new(Schema, Opts),
+  Record = #{?F0 => <<"hiiiiiii">>},
+  {IO0, _, Writer1} = parquer_writer:write(Writer0, Record),
+  {IO1, _} = parquer_writer:close(Writer1),
+  Reference = query_oracle([IO0, IO1], TCConfig),
+  ?assertEqual([#{?F0 => <<"hiiiiiii">>}], Reference),
   ok.
 
 %%%_* Emacs ====================================================================
