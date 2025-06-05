@@ -71,6 +71,7 @@
   path,
   repetition,
   primitive_type,
+  type_length,
   data_page_version,
   max,
   min,
@@ -237,6 +238,7 @@ initial_column_state(LeafColumnSchema, Opts) ->
    , ?max_definition_level := MaxDefLevel
    , ?max_repetition_level := MaxRepLevel
    } = LeafColumnSchema,
+  TypeLength = maps:get(?type_length, LeafColumnSchema, ?undefined),
   KeyRepetitions = Path ++ [{Name, Repetition}],
   {KeyPath, _} = lists:unzip(KeyRepetitions),
   DataPageVersion = data_page_header_version(KeyPath, Opts),
@@ -244,6 +246,7 @@ initial_column_state(LeafColumnSchema, Opts) ->
     path = KeyRepetitions,
     repetition = Repetition,
     primitive_type = PrimitiveType,
+    type_length = TypeLength,
     data_page_version = DataPageVersion,
     max = undefined,
     min = undefined,
@@ -322,26 +325,28 @@ append_repetition_level(#c{repetition_levels = RepetitionLevels0} = Col0, RepLev
 ensure_key(#data{dictionary = Dict} = D, Datum, _C) when is_map_key(Datum, Dict) ->
   D;
 ensure_key(#data{dictionary = Dict0, byte_size = ByteSize0} = D0, Datum, C) ->
-  #c{primitive_type = PrimitiveType} = C,
   Dict = Dict0#{Datum => true},
-  ByteSize = ByteSize0 + estimate_datum_byte_size(Datum, PrimitiveType),
+  ByteSize = ByteSize0 + estimate_datum_byte_size(Datum, C),
   D0#data{
     dictionary = Dict,
     byte_size = ByteSize
   }.
 
-%% TODO: other types
-estimate_datum_byte_size(Bin, ?BYTE_ARRAY) when is_binary(Bin) ->
+estimate_datum_byte_size(Bin, #c{primitive_type = ?BYTE_ARRAY}) when is_binary(Bin) ->
   byte_size(Bin);
-estimate_datum_byte_size(Int, ?INT32) when is_integer(Int) ->
+estimate_datum_byte_size(Bin, #c{primitive_type = ?FIXED_LEN_BYTE_ARRAY, type_length = Len}) when
+    is_binary(Bin), is_integer(Len)
+->
+  Len;
+estimate_datum_byte_size(Int, #c{primitive_type = ?INT32}) when is_integer(Int) ->
   4;
-estimate_datum_byte_size(Int, ?INT64) when is_integer(Int) ->
+estimate_datum_byte_size(Int, #c{primitive_type = ?INT64}) when is_integer(Int) ->
   8;
-estimate_datum_byte_size(Int, ?INT96) when is_integer(Int) ->
+estimate_datum_byte_size(Int, #c{primitive_type = ?INT96}) when is_integer(Int) ->
   12;
-estimate_datum_byte_size(Num, ?FLOAT) when is_number(Num) ->
+estimate_datum_byte_size(Num, #c{primitive_type = ?FLOAT}) when is_number(Num) ->
   4;
-estimate_datum_byte_size(Num, ?DOUBLE) when is_number(Num) ->
+estimate_datum_byte_size(Num, #c{primitive_type = ?DOUBLE}) when is_number(Num) ->
   8.
 
 %% todo: how to improve?
@@ -572,13 +577,10 @@ serialize_levels(RevLevels, MaxLevel, DataPageVersion) ->
   end.
 
 serialize_dictionary(#c{} = C, #writer{} = W) ->
-  #c{
-    data = #data{dictionary = Dictionary},
-    primitive_type = PrimitiveType
-  } = C,
+  #c{data = #data{dictionary = Dictionary}} = C,
   {DictBin, ConcreteDict, _} = maps:fold(
      fun(V, _, {BinAcc0, DictAcc0, N0}) ->
-         BinAcc = append_datum_bin(BinAcc0, V, PrimitiveType),
+         BinAcc = append_datum_bin(BinAcc0, V, C),
          DictAcc = DictAcc0#{V => N0},
          N = N0 + 1,
          {BinAcc, DictAcc, N}
@@ -618,13 +620,13 @@ serialize_dictionary_page_header(SerializedInfo) ->
   parquer_thrift_utils:serialize(PageHeaderDict).
 
 serialize_data_plain(#c{} = C, #writer{} = W) ->
-  #c{primitive_type = PrimitiveType, data = #data{values = RevValues}} = C,
+  #c{data = #data{values = RevValues}} = C,
   RepLevelBin = serialize_repetition_levels(C),
   DefLevelBin = serialize_definition_levels(C),
   DataBin =
     lists:foldl(
       fun(Datum, Acc) ->
-          append_datum_bin(Acc, Datum, PrimitiveType)
+          append_datum_bin(Acc, Datum, C)
       end,
       <<>>,
       lists:reverse(RevValues)),
@@ -742,18 +744,23 @@ serialize_data_page_v2(SerializedInfo, #c{} = C) ->
   parquer_thrift_utils:serialize(PageHeaderData).
 
 %% TODO: add other types
-append_datum_bin(BinAcc, Datum, ?BYTE_ARRAY) when is_binary(Datum) ->
+append_datum_bin(BinAcc, Datum, #c{primitive_type = ?BYTE_ARRAY}) when is_binary(Datum) ->
   Size = encode_data_size(byte_size(Datum)),
   <<BinAcc/binary, Size/binary, Datum/binary>>;
-append_datum_bin(BinAcc, Datum, ?INT32) when is_integer(Datum) ->
+append_datum_bin(BinAcc, Datum, #c{primitive_type = ?FIXED_LEN_BYTE_ARRAY, type_length = TypeLength})
+when
+    is_binary(Datum), is_integer(TypeLength)
+->
+  <<BinAcc/binary, Datum:TypeLength/binary>>;
+append_datum_bin(BinAcc, Datum, #c{primitive_type = ?INT32}) when is_integer(Datum) ->
   <<BinAcc/binary, Datum:32/little-signed>>;
-append_datum_bin(BinAcc, Datum, ?INT64) when is_integer(Datum) ->
+append_datum_bin(BinAcc, Datum, #c{primitive_type = ?INT64}) when is_integer(Datum) ->
   <<BinAcc/binary, Datum:64/little-signed>>;
-append_datum_bin(BinAcc, Datum, ?INT96) when is_integer(Datum) ->
+append_datum_bin(BinAcc, Datum, #c{primitive_type = ?INT96}) when is_integer(Datum) ->
   <<BinAcc/binary, Datum:96/little-signed>>;
-append_datum_bin(BinAcc, Datum, ?FLOAT) when is_number(Datum) ->
+append_datum_bin(BinAcc, Datum, #c{primitive_type = ?FLOAT}) when is_number(Datum) ->
   <<BinAcc/binary, Datum:32/little-float>>;
-append_datum_bin(BinAcc, Datum, ?DOUBLE) when is_number(Datum) ->
+append_datum_bin(BinAcc, Datum, #c{primitive_type = ?DOUBLE}) when is_number(Datum) ->
   <<BinAcc/binary, Datum:64/little-float>>.
 
 bit_width_of(0) ->

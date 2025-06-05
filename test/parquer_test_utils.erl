@@ -20,6 +20,7 @@
   groups/1,
   matrix_cases/1,
   matrix_to_groups/2,
+  get_matrix_params/3,
   group_path/1
 ]).
 
@@ -42,6 +43,9 @@ matrix_cases(Module) ->
         end,
         all0(Module)
     ).
+
+get_matrix_params(Module, Group, Default) ->
+  persistent_term:get({Module, Group}, Default).
 
 get_tc_prop(Module, TestCase, Key, Default) ->
     maybe
@@ -108,7 +112,8 @@ add_case_matrix(Module, TestCase0, Acc0) ->
                 {undefined, Matrix0}
         end,
     lists:foldr(
-        fun(Row, Acc) ->
+        fun(Row0, Acc) ->
+            Row = extract_params(Module, Row0),
             case MaybeRootGroup of
                 undefined ->
                     add_group(Row, Acc, TestCase0);
@@ -157,6 +162,25 @@ all0(Module) ->
        string:substr(atom_to_list(F), 1, 2) == "t_"
   ]).
 
+extract_params(Module, Rows0) ->
+  {Rows, Params} =
+    lists:foldr(
+      fun({Name0, Params}, {RowsAcc, ParamsAcc0}) ->
+           N = erlang:unique_integer([positive]),
+           Name1 = atom_to_binary(Name0),
+           Name = binary_to_atom(iolist_to_binary([Name1, "_", integer_to_binary(N)])),
+           ParamsAcc = [{Name, Params} | ParamsAcc0],
+           {[Name | RowsAcc], ParamsAcc};
+         (Name, {RowsAcc, ParamsAcc0}) when is_atom(Name) ->
+           {[Name | RowsAcc], ParamsAcc0}
+      end,
+      {[], []},
+      Rows0
+     ),
+  lists:foreach(
+    fun({Name, ParamsIn}) -> persistent_term:put({Module, Name}, ParamsIn) end,
+    Params),
+  Rows.
 
 %%%_* Emacs ====================================================================
 %%% Local Variables:

@@ -111,6 +111,7 @@ type(Name, Repetition, #{} = Opts) when
     , ?logical_type
     , ?primitive_type
     , ?converted_type
+    , ?type_length
     , ?fields
     ], Opts),
   maps:merge(Base, Extra).
@@ -225,6 +226,7 @@ do_flatten(Type, Context) ->
     , ?logical_type
     , ?primitive_type
     , ?converted_type
+    , ?type_length
     ], Type),
   [Column0#{
     ?path => Path,

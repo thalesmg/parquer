@@ -59,6 +59,7 @@
 -define(offset, offset).
 -define(primitive_type, primitive_type).
 -define(repetition, repetition).
+-define(type_length, type_length).
 
 -define(COMPRESSION_NONE, none).
 -define(COMPRESSION_SNAPPY, snappy).

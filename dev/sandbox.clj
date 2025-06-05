@@ -361,6 +361,13 @@
         (and (= org.apache.avro.Schema$Type/BOOLEAN (.getType t))
              (boolean? x)) (to-avro x t)
 
+        (and (= org.apache.avro.Schema$Type/FIXED (.getType t))
+             (string? x)) (to-avro
+                           (->> x
+                                .getBytes
+                                (org.apache.avro.generic.GenericData$Fixed. t))
+                           t)
+
         :else (recur ts)))))
 
 #_(defn to-avro
@@ -963,6 +970,22 @@
        parquet-schema-to-avro
        (inspect {:label :avro>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>}))
    [{"f0" [{"f1" false} {"f1" true}]} {"f0" []} {"f0" nil} {"f0" [{"f1" true} {}]}]
+   "bbb.parquet"
+   ;; :conf {"parquet.avro.write-old-list-structure" "false"}
+   )
+
+  (write-with-avro-schema-to-file
+   (-> (parse-parquet-schema
+        (str
+         "
+           message root {
+             optional fixed_len_byte_array(3) f0;
+           }
+       "))
+       (inspect {:label :parquet>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>})
+       parquet-schema-to-avro
+       (inspect {:label :avro>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>}))
+   [{"f0" "hey"}]
    "bbb.parquet"
    ;; :conf {"parquet.avro.write-old-list-structure" "false"}
    )

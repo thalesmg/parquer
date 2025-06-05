@@ -97,7 +97,9 @@ query_oracle(Parquet, TCConfig) ->
   Data.
 
 single_field_schema(Repetition, Type) when is_atom(Type) ->
-  parquer_schema:root(<<"root">>, [parquer_schema:Type(?F0, Repetition)]).
+  single_field_schema(Repetition, Type, _Opts = #{}).
+single_field_schema(Repetition, Type, Opts) when is_atom(Type) ->
+  parquer_schema:root(<<"root">>, [parquer_schema:Type(?F0, Repetition, Opts)]).
 
 write_and_close(Writer0, Records) ->
   {IOData0, _Metadata0, Writer1} = parquer_writer:append_records(Writer0, Records),
@@ -139,6 +141,8 @@ opts_of(TCConfig) ->
 %% ... which is produced by `MessageTypeParser/parseMessageType` followed by
 %% `AvroSchemaConverter/convert`
 smoke_repeated_schema1(Type) ->
+  smoke_repeated_schema1(Type, _Opts = #{}).
+smoke_repeated_schema1(Type, Opts) ->
   parquer_schema:root(
     <<"root">>,
     [parquer_schema:group(
@@ -146,7 +150,7 @@ smoke_repeated_schema1(Type) ->
        #{?converted_type => ?CONVERTED_TYPE_LIST},
        [parquer_schema:group(
           <<"array">>, ?REPETITION_REPEATED,
-          [parquer_schema:Type(?F1, ?REPETITION_OPTIONAL)])])]).
+          [parquer_schema:Type(?F1, ?REPETITION_OPTIONAL, Opts)])])]).
 
 %% Apparently, `AvroParquetReader` with `parquet.avro.readInt96AsFixed=true` reads this
 %% deprecated type like this.
@@ -160,17 +164,19 @@ reader_int96(I) ->
     end,
     Bytes).
 
-smoke_values1(int32) ->
+smoke_values1(A) when is_atom(A) ->
+  smoke_values1(atom_to_list(A));
+smoke_values1("int32") ->
   #{values => [-1, 0, 2147483647]};
-smoke_values1(int64) ->
+smoke_values1("int64") ->
   #{values => [-1, 0, 9223372036854775807]};
-smoke_values1(int96) ->
+smoke_values1("int96") ->
   Values = [-1, 0, 39614081257132168796771975167],
   RoundtripValues = lists:map(fun reader_int96/1, Values),
   #{ values => Values
    , roundtrip_values => RoundtripValues
    };
-smoke_values1(float) ->
+smoke_values1("float") ->
   <<V0:32/float>> = <<16#7f, 16#7f, 16#ff, 16#ff>>,
   V1 = - V0,
   %% Cannot represent +- inf nor nans in erlang.
@@ -179,7 +185,7 @@ smoke_values1(float) ->
   #{ values => Values
    , roundtrip_values => [3.4028235e38, -3.4028235e38, 0.0]
    };
-smoke_values1(double) ->
+smoke_values1("double") ->
   <<V0:64/float>> = <<16#7f, 16#ef, 16#ff, 16#ff, 16#ff, 16#ff, 16#ff, 16#ff>>,
   V1 = - V0,
   %% Cannot represent +- inf nor nans in erlang.
@@ -187,11 +193,20 @@ smoke_values1(double) ->
   Values = [V0, V1, V2],
   #{ values => Values
    , roundtrip_values => [1.7976931348623157e308, -1.7976931348623157e308, 0.0]
+   };
+smoke_values1("fixed_len_byte_array" ++ _) ->
+  %% Values come back as byte arrays
+  #{ values => [<<"abc">>, <<"def">>, <<"ghi">>]
+   , type => fixed_len_byte_array
+   , roundtrip_values => ["abc", "def", "ghi"]
    }.
 
 %% Type matrix for `t_smoke_types_*` tests.
 types1() ->
-  [int32, int64, int96, float, double].
+  [int32, int64, int96, float, double, {fixed_len_byte_array, #{type_length => 3}}].
+
+get_matrix_type_opts(TypeGroup) ->
+  parquer_test_utils:get_matrix_params(?MODULE, TypeGroup, #{}).
 
 %%------------------------------------------------------------------------------
 %% Test cases
@@ -365,11 +380,13 @@ t_smoke_types_required(matrix) ->
      Type <- types1()
   ];
 t_smoke_types_required(TCConfig) when is_list(TCConfig) ->
-  [_, _, Type] = parquer_test_utils:group_path(TCConfig),
+  [_, _, TypeGroup] = parquer_test_utils:group_path(TCConfig),
   #{values := [V0, V1 | _] = Vs} = SVs =
-    smoke_values1(Type),
+    smoke_values1(TypeGroup),
+  Type = maps:get(type, SVs, TypeGroup),
   [EV0, EV1 | _] = EVs = maps:get(roundtrip_values, SVs, Vs),
-  Schema = single_field_schema(?REPETITION_REQUIRED, Type),
+  TypeOpts = get_matrix_type_opts(TypeGroup),
+  Schema = single_field_schema(?REPETITION_REQUIRED, Type, TypeOpts),
   Opts = opts_of(TCConfig),
   Writer0 = parquer_writer:new(Schema, Opts),
   Records = [
@@ -397,11 +414,13 @@ t_smoke_types_optional(matrix) ->
      Type <- types1()
   ];
 t_smoke_types_optional(TCConfig) when is_list(TCConfig) ->
-  [_, _, Type] = parquer_test_utils:group_path(TCConfig),
+  [_, _, TypeGroup] = parquer_test_utils:group_path(TCConfig),
   #{values := [V0, V1 | _] = Vs} = SVs =
-    smoke_values1(Type),
+    smoke_values1(TypeGroup),
+  Type = maps:get(type, SVs, TypeGroup),
   [EV0, EV1 | _] = EVs = maps:get(roundtrip_values, SVs, Vs),
-  Schema = single_field_schema(?REPETITION_OPTIONAL, Type),
+  TypeOpts = get_matrix_type_opts(TypeGroup),
+  Schema = single_field_schema(?REPETITION_OPTIONAL, Type, TypeOpts),
   Opts = opts_of(TCConfig),
   Writer0 = parquer_writer:new(Schema, Opts),
   Records = [
@@ -431,11 +450,13 @@ t_smoke_types_repeated(matrix) ->
      Type <- types1()
   ];
 t_smoke_types_repeated(TCConfig) when is_list(TCConfig) ->
-  [_, _, Type] = parquer_test_utils:group_path(TCConfig),
+  [_, _, TypeGroup] = parquer_test_utils:group_path(TCConfig),
   #{values := [V0, V1, V2 | _] = Vs} = SVs =
-    smoke_values1(Type),
+    smoke_values1(TypeGroup),
+  Type = maps:get(type, SVs, TypeGroup),
   [EV0, EV1, EV2 | _] = EVs = maps:get(roundtrip_values, SVs, Vs),
-  Schema = smoke_repeated_schema1(Type),
+  TypeOpts = get_matrix_type_opts(TypeGroup),
+  Schema = smoke_repeated_schema1(Type, TypeOpts),
   Opts = opts_of(TCConfig),
   Writer0 = parquer_writer:new(Schema, Opts),
   Records = [

@@ -141,6 +141,7 @@ schema_element(Params) ->
   #'schemaElement'{
     field_id = maps:get(?id, Params, ?undefined),
     name = maps:get(?name, Params),
+    type_length = maps:get(?type_length, Params, ?undefined),
     %% logicalType = logical_type_of(maps:get(?logical_type, Params, ?undefined)),
     converted_type = converted_type_of(maps:get(?converted_type, Params, ?undefined)),
     repetition_type = repetition_type_of(maps:get(?repetition, Params)),
