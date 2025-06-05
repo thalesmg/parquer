@@ -142,7 +142,7 @@ schema_element(Params) ->
     field_id = maps:get(?id, Params, ?undefined),
     name = maps:get(?name, Params),
     type_length = maps:get(?type_length, Params, ?undefined),
-    %% logicalType = logical_type_of(maps:get(?logical_type, Params, ?undefined)),
+    logicalType = logical_type_of(maps:get(?logical_type, Params, ?undefined)),
     converted_type = converted_type_of(maps:get(?converted_type, Params, ?undefined)),
     repetition_type = repetition_type_of(maps:get(?repetition, Params)),
     num_children = maps:get(?num_children, Params, ?undefined),
@@ -201,6 +201,10 @@ page_type_of(?PAGE_TYPE_DICT_PAGE) -> ?Parquer_parquet_PageType_DICTIONARY_PAGE.
 codec_of(?COMPRESSION_NONE) -> ?Parquer_parquet_CompressionCodec_UNCOMPRESSED;
 codec_of(?COMPRESSION_ZSTD) -> ?Parquer_parquet_CompressionCodec_ZSTD;
 codec_of(?COMPRESSION_SNAPPY) -> ?Parquer_parquet_CompressionCodec_SNAPPY.
+
+logical_type_of(?undefined) -> ?undefined;
+logical_type_of(#{?name := ?lt_string}) -> #'logicalType'{sTRING = #'stringType'{}};
+logical_type_of(#{?name := ?lt_list}) -> #'logicalType'{lIST = #'listType'{}}.
 
 %%%_* Emacs ====================================================================
 %%% Local Variables:
