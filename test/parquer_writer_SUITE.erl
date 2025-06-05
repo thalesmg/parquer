@@ -171,6 +171,10 @@ smoke_values1(int96) ->
    , roundtrip_values => RoundtripValues
    }.
 
+%% Type matrix for `t_smoke_types_*` tests.
+types1() ->
+  [int32, int64, int96].
+
 %%------------------------------------------------------------------------------
 %% Test cases
 %%------------------------------------------------------------------------------
@@ -334,13 +338,79 @@ t_smoke_boolean_repeated(TCConfig) when is_list(TCConfig) ->
      Reference),
   ok.
 
+t_smoke_types_required() ->
+  [{matrix, true}].
+t_smoke_types_required(matrix) ->
+  [ [Dict, DataPage, Type]
+  || Dict <- [?dict_enabled, ?dict_disabled],
+     DataPage <- [?data_page_v1, ?data_page_v2],
+     Type <- types1()
+  ];
+t_smoke_types_required(TCConfig) when is_list(TCConfig) ->
+  [_, _, Type] = parquer_test_utils:group_path(TCConfig),
+  #{values := [V0, V1 | _] = Vs} = SVs =
+    smoke_values1(Type),
+  [EV0, EV1 | _] = EVs = maps:get(roundtrip_values, SVs, Vs),
+  Schema = single_field_schema(?REPETITION_REQUIRED, Type),
+  Opts = opts_of(TCConfig),
+  Writer0 = parquer_writer:new(Schema, Opts),
+  Records = [
+    #{?F0 => V0},
+    #{?F0 => V1}
+  ],
+  Parquet = write_and_close(Writer0, Records),
+  Reference = query_oracle(Parquet, TCConfig),
+  ?assertMatch(
+     [ #{?F0 := EV0}
+     , #{?F0 := EV1}
+     ],
+     Reference,
+     #{ expected => EVs
+      , inputs__ => Vs
+      }),
+  ok.
+
+t_smoke_types_optional() ->
+  [{matrix, true}].
+t_smoke_types_optional(matrix) ->
+  [ [Dict, DataPage, Type]
+  || Dict <- [?dict_enabled, ?dict_disabled],
+     DataPage <- [?data_page_v1, ?data_page_v2],
+     Type <- types1()
+  ];
+t_smoke_types_optional(TCConfig) when is_list(TCConfig) ->
+  [_, _, Type] = parquer_test_utils:group_path(TCConfig),
+  #{values := [V0, V1 | _] = Vs} = SVs =
+    smoke_values1(Type),
+  [EV0, EV1 | _] = EVs = maps:get(roundtrip_values, SVs, Vs),
+  Schema = single_field_schema(?REPETITION_OPTIONAL, Type),
+  Opts = opts_of(TCConfig),
+  Writer0 = parquer_writer:new(Schema, Opts),
+  Records = [
+    #{?F0 => V0},
+    #{},
+    #{?F0 => V1}
+  ],
+  Parquet = write_and_close(Writer0, Records),
+  Reference = query_oracle(Parquet, TCConfig),
+  ?assertMatch(
+     [ #{?F0 := EV0}
+     , #{?F0 := null}
+     , #{?F0 := EV1}
+     ],
+     Reference,
+     #{ expected => EVs
+      , inputs__ => Vs
+      }),
+  ok.
+
 t_smoke_types_repeated() ->
   [{matrix, true}].
 t_smoke_types_repeated(matrix) ->
   [ [Dict, DataPage, Type]
   || Dict <- [?dict_enabled, ?dict_disabled],
      DataPage <- [?data_page_v1, ?data_page_v2],
-     Type <- [int32, int64, int96]
+     Type <- types1()
   ];
 t_smoke_types_repeated(TCConfig) when is_list(TCConfig) ->
   [_, _, Type] = parquer_test_utils:group_path(TCConfig),
