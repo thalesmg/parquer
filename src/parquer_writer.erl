@@ -338,7 +338,11 @@ estimate_datum_byte_size(Int, ?INT32) when is_integer(Int) ->
 estimate_datum_byte_size(Int, ?INT64) when is_integer(Int) ->
   8;
 estimate_datum_byte_size(Int, ?INT96) when is_integer(Int) ->
-  12.
+  12;
+estimate_datum_byte_size(Num, ?FLOAT) when is_number(Num) ->
+  4;
+estimate_datum_byte_size(Num, ?DOUBLE) when is_number(Num) ->
+  8.
 
 %% todo: how to improve?
 estimate_byte_size(#c{data = #data{byte_size = ByteSize}}) ->
@@ -746,7 +750,11 @@ append_datum_bin(BinAcc, Datum, ?INT32) when is_integer(Datum) ->
 append_datum_bin(BinAcc, Datum, ?INT64) when is_integer(Datum) ->
   <<BinAcc/binary, Datum:64/little-signed>>;
 append_datum_bin(BinAcc, Datum, ?INT96) when is_integer(Datum) ->
-  <<BinAcc/binary, Datum:96/little-signed>>.
+  <<BinAcc/binary, Datum:96/little-signed>>;
+append_datum_bin(BinAcc, Datum, ?FLOAT) when is_number(Datum) ->
+  <<BinAcc/binary, Datum:32/little-float>>;
+append_datum_bin(BinAcc, Datum, ?DOUBLE) when is_number(Datum) ->
+  <<BinAcc/binary, Datum:64/little-float>>.
 
 bit_width_of(0) ->
   0;

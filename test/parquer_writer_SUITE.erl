@@ -169,11 +169,29 @@ smoke_values1(int96) ->
   RoundtripValues = lists:map(fun reader_int96/1, Values),
   #{ values => Values
    , roundtrip_values => RoundtripValues
+   };
+smoke_values1(float) ->
+  <<V0:32/float>> = <<16#7f, 16#7f, 16#ff, 16#ff>>,
+  V1 = - V0,
+  %% Cannot represent +- inf nor nans in erlang.
+  V2 = 0.0,
+  Values = [V0, V1, V2],
+  #{ values => Values
+   , roundtrip_values => [3.4028235e38, -3.4028235e38, 0.0]
+   };
+smoke_values1(double) ->
+  <<V0:64/float>> = <<16#7f, 16#ef, 16#ff, 16#ff, 16#ff, 16#ff, 16#ff, 16#ff>>,
+  V1 = - V0,
+  %% Cannot represent +- inf nor nans in erlang.
+  V2 = 0.0,
+  Values = [V0, V1, V2],
+  #{ values => Values
+   , roundtrip_values => [1.7976931348623157e308, -1.7976931348623157e308, 0.0]
    }.
 
 %% Type matrix for `t_smoke_types_*` tests.
 types1() ->
-  [int32, int64, int96].
+  [int32, int64, int96, float, double].
 
 %%------------------------------------------------------------------------------
 %% Test cases
