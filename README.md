@@ -27,14 +27,14 @@ Schema =
 %% Create a writer
 Writer0 = parquer_writer:new(Schema, _WriterOpts = #{}).
 %% Append records
-{IOData1, _WriteMetadata1, Writer1} =
+{IOData1, Writer1} =
   parquer_writer:write_many(Writer0, [
     #{<<"f0">> => <<"hello">>, <<"f1">> => true},
     #{<<"f0">> => undefined, <<"f1">> => false}
     #{<<"f0">> => <<"world!">>, <<"f1">> => false}
   ]).
 %% Finish writing
-{IOData2, _WriteMetadata2} = parquer_writer:close(Writer1).
+{IOData2, _WriteMetadata} = parquer_writer:close(Writer1).
 %% Save data to a file
 file:write_file("/tmp/data.parquet", [IOData1, IOData2]).
 ```

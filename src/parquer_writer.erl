@@ -143,13 +143,8 @@
 -type compression() :: ?COMPRESSION_NONE | ?COMPRESSION_SNAPPY | ?COMPRESSION_ZSTD.
 
 -type write_metadata() :: #{
-  ?id := ?undefined | integer(),
-  ?name := binary(),
-  ?num_rows := non_neg_integer(),
   atom() => term()
 }.
-
--type write_metadata_internal() :: #write_meta{}.
 
 %%------------------------------------------------------------------------------
 %% API
@@ -168,24 +163,22 @@ new(Schema, #{} = Opts0) ->
   Columns = initialize_columns(FlatSchema, Opts),
   #writer{schema = FlatSchema, columns = Columns, opts = Opts}.
 
--spec write_many(t(), [data()]) -> {iodata(), [write_metadata()], t()}.
+-spec write_many(t(), [data()]) -> {iodata(), t()}.
 write_many(#writer{} = Writer0, Records) when is_list(Records) ->
-  {IOData, RevWriteMeta, Writer} = lists:foldl(
-    fun(Record, {IOAcc0, WMetaAcc0, WAcc0}) ->
-        {IO, WMeta, WAcc} = write(WAcc0, Record),
-        WMetaAcc = lists:reverse(WMeta, WMetaAcc0),
+  lists:foldl(
+    fun(Record, {IOAcc0, WAcc0}) ->
+        {IO, WAcc} = write(WAcc0, Record),
         IOAcc = case IO of
           [] -> IOAcc0;
           _ -> [IOAcc0, IO]
         end,
-        {IOAcc, WMetaAcc, WAcc}
+        {IOAcc, WAcc}
     end,
-    {[], [], Writer0},
+    {[], Writer0},
     Records
-   ),
-  {IOData, lists:reverse(RevWriteMeta), Writer}.
+   ).
 
--spec write(t(), data()) -> {iodata(), [write_metadata()], t()}.
+-spec write(t(), data()) -> {iodata(), t()}.
 write(#writer{} = Writer0, Record) ->
   Cols = lists:map(
     fun(C) -> append_to_column(C, Record) end,
@@ -198,7 +191,7 @@ write(#writer{} = Writer0, Record) ->
   },
   maybe_emit_row_group(Writer1).
 
--spec close(t()) -> {iodata(), [write_metadata()]}.
+-spec close(t()) -> {iodata(), write_metadata()}.
 close(#writer{} = Writer) ->
   do_close(Writer).
 
@@ -382,14 +375,14 @@ estimate_datum_byte_size(Num, #c{primitive_type = ?DOUBLE}) when is_number(Num) 
 estimate_byte_size(#c{data = #data{byte_size = ByteSize}}) ->
   ByteSize.
 
--spec do_close(t()) -> {iodata(), [write_metadata()]}.
+-spec do_close(t()) -> {iodata(), write_metadata()}.
 do_close(#writer{} = Writer0) ->
-  {IOData0, WriteMetaOut, Writer1} =
+  {IOData0, Writer1} =
     case Writer0#writer.has_data of
       true ->
         close_row_group(Writer0);
       false ->
-        {[], [], Writer0}
+        {[], Writer0}
     end,
   RowGroups = lists:reverse(Writer1#writer.closed_row_groups),
   FMD = parquer_thrift_utils:file_metadata(#{
@@ -401,9 +394,11 @@ do_close(#writer{} = Writer0) ->
   }),
   FMDBin = parquer_thrift_utils:serialize(FMD),
   FMDBinSize = iolist_size(FMDBin),
+  %% For future use; maybe return the FMD here.
+  WriteMetaOut = #{},
   {[IOData0, FMDBin, encode_data_size(FMDBinSize), ?MAGIC_NOT_ENCRYPTED], WriteMetaOut}.
 
--spec maybe_emit_row_group(t()) -> {iodata(), [write_metadata()], t()}.
+-spec maybe_emit_row_group(t()) -> {iodata(), t()}.
 maybe_emit_row_group(#writer{} = Writer0) ->
   EstimatedByteSize =
     lists:foldl(
@@ -415,7 +410,7 @@ maybe_emit_row_group(#writer{} = Writer0) ->
     true ->
       close_row_group(Writer0);
     false ->
-      {[], [], Writer0}
+      {[], Writer0}
   end.
 
 close_row_group(#writer{} = Writer0) ->
@@ -452,8 +447,7 @@ close_row_group(#writer{} = Writer0) ->
     columns = initialize_columns(Writer2#writer.schema, Writer2#writer.opts),
     closed_row_groups = [RowGroup | Writer2#writer.closed_row_groups]
   },
-  WriteMetasOut = lists:map(fun write_metadata_out/1, WriteMetas),
-  {[MMagic, IOData], WriteMetasOut, Writer3}.
+  {[MMagic, IOData], Writer3}.
 
 maybe_emit_magic(#writer{offset = 0} = Writer0) ->
   %% File just started.
@@ -888,15 +882,6 @@ data_page_offset(#write_meta{} = WriteMeta, #writer{offset = BaseOffset}) ->
 
 schema_to_thrift(#writer{schema = Schema}) ->
   lists:map(fun parquer_thrift_utils:schema_element/1, Schema).
-
--spec write_metadata_out(write_metadata_internal()) -> write_metadata().
-write_metadata_out(#write_meta{} = WM) ->
-  #{?id := Id, ?name := Name} = WM#write_meta.column,
-  #{
-     ?id => Id,
-     ?name => Name,
-     ?num_rows => WM#write_meta.num_rows
-   }.
 
 is_dictionary_enabled(KeyPath, Opts) ->
   ColKeyPath = iolist_to_binary(lists:join($., KeyPath)),

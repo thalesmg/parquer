@@ -104,8 +104,8 @@ single_field_schema(Repetition, Type, Opts) when is_atom(Type) ->
   parquer_schema:root(<<"root">>, [parquer_schema:Type(?F0, Repetition, Opts)]).
 
 write_and_close(Writer0, Records) ->
-  {IOData0, _Metadata0, Writer1} = parquer_writer:write_many(Writer0, Records),
-  {IOData1, _Metadata1} = parquer_writer:close(Writer1),
+  {IOData0, Writer1} = parquer_writer:write_many(Writer0, Records),
+  {IOData1, _WriteMetadata} = parquer_writer:close(Writer1),
   [IOData0, IOData1].
 
 opts_of(TCConfig) ->
@@ -617,7 +617,7 @@ t_duplicate_values_with_dict(TCConfig) when is_list(TCConfig) ->
     #{?F0 => <<"world">>},
     #{?F0 => <<"hi">>}
   ],
-  {IO0, _, Writer1} = parquer_writer:write_many(Writer0, Records),
+  {IO0, Writer1} = parquer_writer:write_many(Writer0, Records),
   {IO1, _} = parquer_writer:close(Writer1),
   Reference = query_oracle([IO0, IO1], TCConfig),
   ?assertEqual(
@@ -638,7 +638,7 @@ t_compressions(TCConfig) when is_list(TCConfig) ->
   Opts = opts_of(TCConfig),
   Writer0 = parquer_writer:new(Schema, Opts),
   Record = #{?F0 => <<"hiiiiiii">>},
-  {IO0, _, Writer1} = parquer_writer:write(Writer0, Record),
+  {IO0, Writer1} = parquer_writer:write(Writer0, Record),
   {IO1, _} = parquer_writer:close(Writer1),
   Reference = query_oracle([IO0, IO1], TCConfig),
   ?assertEqual([#{?F0 => <<"hiiiiiii">>}], Reference),
