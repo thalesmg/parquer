@@ -130,6 +130,12 @@ avro_schema_to_parquet(#{?t := <<"array">>} = Sc, Name, ListRepetition, Parent, 
         avro_schema_to_parquet(InnerSc0, <<"array">>, ?REPETITION_REPEATED, Sc, Opts)
       ])
   end;
+avro_schema_to_parquet(#{?t := <<"map">>} = Sc, Name, MapRepetition, Parent, Opts) ->
+  #{ <<"values">> := ValuesSc0
+   } = Sc,
+  {ValuesRepetition, ValuesSc} = parse_maybe_union(ValuesSc0),
+  ValueType = avro_schema_to_parquet(ValuesSc, <<"value">>, ValuesRepetition, Sc, Opts),
+  parquer_schema:map(Name, MapRepetition, common_opts(Parent), ValueType);
 avro_schema_to_parquet(Sc, _Name, _Repetition, _Parent, _Opts) ->
   throw_unsupported_type(Sc).
 

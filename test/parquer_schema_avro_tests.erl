@@ -327,6 +327,146 @@ write_old_list_structure_test_() ->
     }
   ].
 
+map1_test_() ->
+  [ { "non-null map, non-null value"
+    , ?_assertMatch(
+         #{ ?name := <<"root">>
+          , ?repetition := ?REPETITION_REPEATED
+          , ?fields := [
+             #{ ?id := 1
+              , ?name := <<"f1">>
+              , ?repetition := ?REPETITION_REQUIRED
+              , ?converted_type := ?CONVERTED_TYPE_MAP
+              , ?logical_type := #{?name := ?lt_map}
+              , ?fields := [
+                  #{ ?name := <<"key_value">>
+                   , ?repetition := ?REPETITION_REPEATED
+                   , ?converted_type := ?CONVERTED_TYPE_MAP_KEY_VALUE
+                   , ?fields := [
+                       #{ ?name := <<"key">>
+                        , ?converted_type := ?CONVERTED_TYPE_UTF8
+                        , ?logical_type := #{?name := ?lt_string}
+                        , ?primitive_type := ?BYTE_ARRAY
+                        , ?repetition := ?REPETITION_REQUIRED
+                        }
+                     , #{ ?name := <<"value">>
+                        , ?primitive_type := ?INT64
+                        , ?repetition := ?REPETITION_REQUIRED
+                        }
+                     ]
+                   }
+                 ]
+              }
+            ]
+          },
+         parquer_schema_avro:from_avro(read_example_avro_sc("non_null_map_non_null_value.avsc"))
+       )
+    }
+  , { "non-null map, null value"
+    , ?_assertMatch(
+         #{ ?name := <<"root">>
+          , ?repetition := ?REPETITION_REPEATED
+          , ?fields := [
+             #{ ?id := 1
+              , ?name := <<"f1">>
+              , ?repetition := ?REPETITION_REQUIRED
+              , ?converted_type := ?CONVERTED_TYPE_MAP
+              , ?logical_type := #{?name := ?lt_map}
+              , ?fields := [
+                  #{ ?name := <<"key_value">>
+                   , ?repetition := ?REPETITION_REPEATED
+                   , ?converted_type := ?CONVERTED_TYPE_MAP_KEY_VALUE
+                   , ?fields := [
+                       #{ ?name := <<"key">>
+                        , ?converted_type := ?CONVERTED_TYPE_UTF8
+                        , ?logical_type := #{?name := ?lt_string}
+                        , ?primitive_type := ?BYTE_ARRAY
+                        , ?repetition := ?REPETITION_REQUIRED
+                        }
+                     , #{ ?name := <<"value">>
+                        , ?primitive_type := ?INT64
+                        , ?repetition := ?REPETITION_OPTIONAL
+                        }
+                     ]
+                   }
+                 ]
+              }
+            ]
+          },
+         parquer_schema_avro:from_avro(read_example_avro_sc("non_null_map_null_value.avsc"))
+       )
+    }
+  , { "null map, null value"
+    , ?_assertMatch(
+         #{ ?name := <<"root">>
+          , ?repetition := ?REPETITION_REPEATED
+          , ?fields := [
+             #{ ?id := 1
+              , ?name := <<"f1">>
+              , ?repetition := ?REPETITION_OPTIONAL
+              , ?converted_type := ?CONVERTED_TYPE_MAP
+              , ?logical_type := #{?name := ?lt_map}
+              , ?fields := [
+                  #{ ?name := <<"key_value">>
+                   , ?repetition := ?REPETITION_REPEATED
+                   , ?converted_type := ?CONVERTED_TYPE_MAP_KEY_VALUE
+                   , ?fields := [
+                       #{ ?name := <<"key">>
+                        , ?converted_type := ?CONVERTED_TYPE_UTF8
+                        , ?logical_type := #{?name := ?lt_string}
+                        , ?primitive_type := ?BYTE_ARRAY
+                        , ?repetition := ?REPETITION_REQUIRED
+                        }
+                     , #{ ?name := <<"value">>
+                        , ?primitive_type := ?INT64
+                        , ?repetition := ?REPETITION_OPTIONAL
+                        }
+                     ]
+                   }
+                 ]
+              }
+            ]
+          },
+         parquer_schema_avro:from_avro(read_example_avro_sc("null_map_null_value.avsc"))
+       )
+    }
+  , { "non-null map, non-null value"
+    , ?_assertMatch(
+         #{ ?name := <<"root">>
+          , ?repetition := ?REPETITION_REPEATED
+          , ?fields := [
+             #{ ?id := 1
+              , ?name := <<"f1">>
+              , ?repetition := ?REPETITION_OPTIONAL
+              , ?converted_type := ?CONVERTED_TYPE_MAP
+              , ?logical_type := #{?name := ?lt_map}
+              , ?fields := [
+                  #{ ?name := <<"key_value">>
+                   , ?repetition := ?REPETITION_REPEATED
+                   , ?converted_type := ?CONVERTED_TYPE_MAP_KEY_VALUE
+                   , ?fields := [
+                       #{ ?name := <<"key">>
+                        , ?converted_type := ?CONVERTED_TYPE_UTF8
+                        , ?logical_type := #{?name := ?lt_string}
+                        , ?primitive_type := ?BYTE_ARRAY
+                        , ?repetition := ?REPETITION_REQUIRED
+                        }
+                     , #{ ?name := <<"value">>
+                        , ?primitive_type := ?INT64
+                        , ?repetition := ?REPETITION_REQUIRED
+                        }
+                     ]
+                   }
+                 ]
+              }
+            ]
+          },
+         parquer_schema_avro:from_avro(read_example_avro_sc("null_map_non_null_value.avsc"))
+       )
+    }
+  ]
+  .
+
 %%%_* Emacs ====================================================================
 %%% Local Variables:
 %%% erlang-indent-level: 2

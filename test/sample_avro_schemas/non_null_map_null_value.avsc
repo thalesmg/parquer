@@ -1,0 +1,14 @@
+{
+  "name": "root",
+  "type": "record",
+  "fields": [
+    {
+      "name": "f1",
+      "field-id": 1,
+      "type": {
+        "type": "map",
+        "values": ["null", "long"]
+      }
+    }
+  ]
+}

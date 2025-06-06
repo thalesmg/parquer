@@ -197,7 +197,7 @@
   (-> schema
       MessageTypeParser/parseMessageType))
 
-(defn parquet-schema-to-avro
+(defn parquet-schema<->avro
   [parquet-schema]
   (let [converter (org.apache.parquet.avro.AvroSchemaConverter.)]
     (.convert converter parquet-schema)))
@@ -206,7 +206,7 @@
   [schema]
   (-> schema
       parse-parquet-schema
-      parquet-schema-to-avro))
+      parquet-schema<->avro))
 
 (defn open-avro-schema
   [filepath]
@@ -352,6 +352,9 @@
         (and (= org.apache.avro.Schema$Type/INT (.getType t))
              (int? x)) (to-avro x t)
 
+        (and (= org.apache.avro.Schema$Type/LONG (.getType t))
+             (int? x)) (to-avro x t)
+
         (and (= org.apache.avro.Schema$Type/STRING (.getType t))
              (string? x)) (to-avro x t)
 
@@ -370,19 +373,6 @@
 
         :else (recur ts)))))
 
-#_(defn to-avro
-  [x schema]
-  (cond
-    (.isUnion schema) (resolve-avro-union x schema)
-    (map? x) (let [builder (GenericRecordBuilder. schema)]
-               (doseq [[k v] x]
-                 (let [in-sc (-> schema (.getField k) .schema)]
-                   (.set builder k (to-avro v in-sc))))
-               (.build builder))
-    (vector? x) (let [in-sc (.getElementType schema)]
-                  (GenericData$Array. in-sc x))
-    :else x))
-
 (defn to-avro
   [x schema]
   (let [t (.getType schema)]
@@ -397,11 +387,16 @@
         (.build builder))
 
       #{org.apache.avro.Schema$Type/MAP}
-      (let [builder (GenericRecordBuilder. schema)]
-        (doseq [[k v] x]
-          (let [in-sc (-> schema (.getField k) .schema)]
-            (.set builder k (to-avro v in-sc))))
-        (.build builder))
+      (let [value-sc (.getValueType schema)]
+        (prn :>>>>>>>>>>> value-sc)
+        (GenericData$Array.
+         schema
+         (mapv (fn [[k v]]
+                 (-> (GenericRecordBuilder. schema)
+                     (.set "key" k)
+                     (.set "value" (to-avro v value-sc))
+                     .build))
+               x)))
 
       #{org.apache.avro.Schema$Type/ARRAY}
       (let [in-sc (.getElementType schema)]
@@ -446,7 +441,7 @@
     (io/delete-file outpath)
     (catch Exception _))
   (let [outfile (LocalOutputFile. (-> outpath io/file .toPath))
-        avro-schema (parquet-schema-to-avro parquet-schema)
+        avro-schema (parquet-schema<->avro parquet-schema)
         writer (-> (org.apache.parquet.avro.AvroParquetWriter/builder outfile)
                    (.withSchema avro-schema)
                    (cond->
@@ -868,7 +863,7 @@
         }
        "))
        (inspect {:label :parquet>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>})
-       parquet-schema-to-avro
+       parquet-schema<->avro
        (inspect {:label :avro>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>}))
    [{"f0" []} {"f0" [{"f1" "hi"} {"f1" nil} {}]}]
    "bbb.parquet"
@@ -886,7 +881,7 @@
         }
        "))
        (inspect {:label :parquet>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>})
-       parquet-schema-to-avro
+       parquet-schema<->avro
        (inspect {:label :avro>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>}))
    [{"f0" []} {"f0" [{"f1" "hi"} {"f1" nil} {}]} {"f0" nil}]
    "bbb.parquet"
@@ -908,7 +903,7 @@
            }
        "))
        (inspect {:label :parquet>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>})
-       parquet-schema-to-avro
+       parquet-schema<->avro
        (inspect {:label :avro>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>}))
    [{"nest" {"thing" []}}]
    "bbb.parquet"
@@ -931,7 +926,7 @@
            }
        "))
        (inspect {:label :parquet>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>})
-       parquet-schema-to-avro
+       parquet-schema<->avro
        (inspect {:label :avro>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>}))
    [{"nest" {"thing" nil}}]
    "bbb.parquet"
@@ -947,7 +942,7 @@
            }
        "))
        (inspect {:label :parquet>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>})
-       parquet-schema-to-avro
+       parquet-schema<->avro
        (inspect {:label :avro>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>}))
    [{"f0" true} {"f0" true} {"f0" false} {"f0" false} {"f0" false} {"f0" false} {"f0" false} {"f0" false} {"f0" true}]
    "bbb.parquet"
@@ -967,7 +962,7 @@
            }
        "))
        (inspect {:label :parquet>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>})
-       parquet-schema-to-avro
+       parquet-schema<->avro
        (inspect {:label :avro>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>}))
    [{"f0" [{"f1" false} {"f1" true}]} {"f0" []} {"f0" nil} {"f0" [{"f1" true} {}]}]
    "bbb.parquet"
@@ -983,7 +978,7 @@
            }
        "))
        (inspect {:label :parquet>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>})
-       parquet-schema-to-avro
+       parquet-schema<->avro
        (inspect {:label :avro>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>}))
    [{"f0" "hey"}]
    "bbb.parquet"
@@ -1000,9 +995,28 @@
            }
        "))
        (inspect {:label :parquet>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>})
-       parquet-schema-to-avro
+       parquet-schema<->avro
        (inspect {:label :avro>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>}))
    [{"f0" [1] "f1" "oi"}]
+   "bbb.parquet"
+   ;; :conf {"parquet.avro.write-old-list-structure" "false"}
+   )
+
+  (write-with-avro-schema-to-file
+   (-> (parse-parquet-schema
+        (str
+         "
+           message root {
+             required group f1 (MAP) {
+               repeated group key_value (MAP_KEY_VALUE) {
+                 required binary key (STRING);
+                 required int64 value;
+               }
+             }
+           }
+       "))
+       parquet-schema<->avro)
+   []
    "bbb.parquet"
    ;; :conf {"parquet.avro.write-old-list-structure" "false"}
    )

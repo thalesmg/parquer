@@ -56,6 +56,7 @@
 -define(CONVERTED_TYPE_UTF8, utf8).
 -define(CONVERTED_TYPE_LIST, list).
 -define(CONVERTED_TYPE_MAP, map).
+-define(CONVERTED_TYPE_MAP_KEY_VALUE, map_key_value).
 
 -define(undefined, undefined).
 

@@ -34,6 +34,8 @@
   binary/3,
   list/3,
   list/4,
+  map/3,
+  map/4,
 
   %% Primitive types
   bool/2,
@@ -148,6 +150,21 @@ list(Name, ListRepetition, Opts0, Fields) when
   },
   group(Name, ListRepetition, Opts, Fields).
 
+map(Name, MapRepetition, #{} = ValueType) ->
+  map(Name, MapRepetition, _Opts = #{}, ValueType).
+map(Name, MapRepetition, Opts0, #{} = ValueType) ->
+  Opts = Opts0#{
+    ?logical_type => lt_map(),
+    ?converted_type => ?CONVERTED_TYPE_MAP
+  },
+  KVOpts = #{?converted_type => ?CONVERTED_TYPE_MAP_KEY_VALUE},
+  group(Name, MapRepetition, Opts, [
+    group(<<"key_value">>, ?REPETITION_REPEATED, KVOpts, [
+      string(<<"key">>, ?REPETITION_REQUIRED),
+      ValueType
+    ])
+  ]).
+
 %%------------------------------------------------------------------------------
 %% Primitive types
 %%------------------------------------------------------------------------------
@@ -196,11 +213,11 @@ fixed_len_byte_array(Name, Repetition, Opts) ->
 %% Internal fns
 %%------------------------------------------------------------------------------
 
-lt_string() ->
-  #{?name => ?lt_string}.
+lt_string() -> #{?name => ?lt_string}.
 
-lt_list() ->
-  #{?name => ?lt_list}.
+lt_list() -> #{?name => ?lt_list}.
+
+lt_map() -> #{?name => ?lt_map}.
 
 do_flatten(#{?fields := Fields} = Type, Context0) ->
   #{ ?path := Path
