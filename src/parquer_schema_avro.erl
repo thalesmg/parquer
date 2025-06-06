@@ -141,6 +141,8 @@ avro_schema_to_parquet(#{?t := <<"map">>} = Sc, Name, MapRepetition, Parent, Opt
   {ValuesRepetition, ValuesSc} = parse_maybe_union(ValuesSc0),
   ValueType = avro_schema_to_parquet(ValuesSc, <<"value">>, ValuesRepetition, Sc, Opts),
   parquer_schema:map(Name, MapRepetition, common_opts(Parent), ValueType);
+avro_schema_to_parquet(#{?t := <<"record">>} = Sc, Name, Repetition, _Parent, Opts) ->
+  avro_record_to_parquet(Sc#{?n => Name}, Repetition, Opts);
 avro_schema_to_parquet(Sc, _Name, _Repetition, _Parent, _Opts) ->
   throw_unsupported_type(Sc).
 

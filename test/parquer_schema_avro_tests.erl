@@ -495,6 +495,31 @@ enum_test_() ->
         )}
   ].
 
+nested_record1_test() ->
+  ?assertMatch(
+    #{ ?name := <<"root">>
+     , ?repetition := ?REPETITION_REPEATED
+     , ?fields :=
+         [ #{ ?id := 1
+            , ?name := <<"f1">>
+            , ?repetition := ?REPETITION_REQUIRED
+            , ?primitive_type := ?INT32
+            }
+         , #{ ?name := <<"f2">>
+            , ?repetition := ?REPETITION_REQUIRED
+            , ?fields := [
+                #{ ?id := 3
+                 , ?name := <<"f3">>
+                 , ?repetition := ?REPETITION_REQUIRED
+                 , ?primitive_type := ?FLOAT
+                 }
+              ]
+            }
+         ]
+     },
+    parquer_schema_avro:from_avro(read_example_avro_sc("nested_record1.avsc"))
+   ).
+
 %%%_* Emacs ====================================================================
 %%% Local Variables:
 %%% erlang-indent-level: 2
