@@ -71,6 +71,8 @@
 
 %% Column state
 -record(c, {
+  id,
+  name,
   path,
   repetition,
   primitive_type,
@@ -99,6 +101,7 @@
 }).
 
 -record(write_meta, {
+  column,
   num_rows,
   total_compressed_size,
   total_uncompressed_size,
@@ -140,9 +143,13 @@
 -type compression() :: ?COMPRESSION_NONE | ?COMPRESSION_SNAPPY | ?COMPRESSION_ZSTD.
 
 -type write_metadata() :: #{
-  num_rows => non_neg_integer(),
+  ?id := ?undefined | integer(),
+  ?name := binary(),
+  ?num_rows := non_neg_integer(),
   atom() => term()
 }.
+
+-type write_metadata_internal() :: #write_meta{}.
 
 %%------------------------------------------------------------------------------
 %% API
@@ -263,6 +270,8 @@ initial_column_state(LeafColumnSchema, Opts) ->
   {KeyPath, _} = lists:unzip(KeyRepetitions),
   DataPageVersion = data_page_header_version(KeyPath, Opts),
   #c{
+    id = maps:get(?id, LeafColumnSchema, ?undefined),
+    name = Name,
     path = KeyRepetitions,
     repetition = Repetition,
     primitive_type = PrimitiveType,
@@ -490,6 +499,7 @@ serialize_column(#c{primitive_type = ?BOOLEAN} = C, #writer{} = W) ->
   IOData = [PageHeaderDataBin, ColDataBinComp],
   PageHeaderBinSize = iolist_size(PageHeaderDataBin),
   WriteMeta = #write_meta{
+    column = write_metadata_column_id(C),
     num_rows = C#c.num_rows,
     total_compressed_size = PageHeaderBinSize + ColDataBinCompSize,
     total_uncompressed_size = PageHeaderBinSize + ColDataBinSize,
@@ -512,6 +522,7 @@ serialize_column(#c{data = #data{enable_dictionary = false}} = C, #writer{} = W)
   TotalCompSize = PageHeaderDataBinSize + ColDataBinCompSize,
   TotalSize = PageHeaderDataBinSize + ColDataBinSize,
   WriteMeta = #write_meta{
+    column = write_metadata_column_id(C),
     num_rows = C#c.num_rows,
     total_compressed_size = TotalCompSize,
     total_uncompressed_size = TotalSize,
@@ -548,6 +559,7 @@ serialize_column(#c{data = #data{enable_dictionary = true}} = C, #writer{} = W) 
   TotalCompSize = PageHeaderDictBinSize + DictBinCompSize + PageHeaderDataBinSize + ColDataBinCompSize,
   TotalSize = PageHeaderDictBinSize + DictBinSize + PageHeaderDataBinSize + ColDataBinSize,
   WriteMeta = #write_meta{
+    column = write_metadata_column_id(C),
     num_rows = C#c.num_rows,
     total_compressed_size = TotalCompSize,
     total_uncompressed_size = TotalSize,
@@ -877,9 +889,13 @@ data_page_offset(#write_meta{} = WriteMeta, #writer{offset = BaseOffset}) ->
 schema_to_thrift(#writer{schema = Schema}) ->
   lists:map(fun parquer_thrift_utils:schema_element/1, Schema).
 
+-spec write_metadata_out(write_metadata_internal()) -> write_metadata().
 write_metadata_out(#write_meta{} = WM) ->
+  #{?id := Id, ?name := Name} = WM#write_meta.column,
   #{
-     num_rows => WM#write_meta.num_rows
+     ?id => Id,
+     ?name => Name,
+     ?num_rows => WM#write_meta.num_rows
    }.
 
 is_dictionary_enabled(KeyPath, Opts) ->
@@ -904,6 +920,9 @@ data_page_header_version(KeyPath, Opts) ->
 
 max_row_group_bytes(#writer{opts = #{?max_row_group_bytes := MaxRowGroupBytes}}) ->
   MaxRowGroupBytes.
+
+write_metadata_column_id(#c{id = Id, name = Name}) ->
+  #{?id => Id, ?name => Name}.
 
 %%%_* Emacs ====================================================================
 %%% Local Variables:
