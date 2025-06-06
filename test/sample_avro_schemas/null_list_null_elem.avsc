@@ -1,0 +1,18 @@
+{
+  "name": "root",
+  "type": "record",
+  "fields": [
+    {
+      "field-id": 1,
+      "name": "f1",
+      "type": [
+        "null",
+        {
+          "type": "array",
+          "element-id": 2,
+          "items": ["null", "string"]
+        }
+      ]
+    }
+  ]
+}

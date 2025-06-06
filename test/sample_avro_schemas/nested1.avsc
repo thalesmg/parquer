@@ -1,0 +1,30 @@
+{
+  "name": "root",
+  "type": "record",
+  "fields": [
+    {
+      "field-id": 1,
+      "name": "f1",
+      "type": ["null", "string"]
+    },
+    {
+      "field-id": 2,
+      "name": "f2",
+      "type": "int"
+    },
+    {
+      "field-id": 3,
+      "name": "f3",
+      "type": ["null", "float", "boolean"]
+    },
+    {
+      "field-id": 4,
+      "name": "f4",
+      "type": {
+        "type": "array",
+        "element-id": 5,
+        "items": "string"
+      }
+    }
+  ]
+}
