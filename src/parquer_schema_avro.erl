@@ -143,6 +143,12 @@ avro_schema_to_parquet(#{?t := <<"map">>} = Sc, Name, MapRepetition, Parent, Opt
   parquer_schema:map(Name, MapRepetition, common_opts(Parent), ValueType);
 avro_schema_to_parquet(#{?t := <<"record">>} = Sc, Name, Repetition, _Parent, Opts) ->
   avro_record_to_parquet(Sc#{?n => Name}, Repetition, Opts);
+avro_schema_to_parquet(#{?t := <<"fixed">>} = Sc, Name, Repetition, Parent, _Opts) ->
+  #{ <<"size">> := TypeLength
+   } = Sc,
+  TypeOpts0 = common_opts(Parent),
+  TypeOpts = TypeOpts0#{?type_length => TypeLength},
+  parquer_schema:fixed_len_byte_array(Name, Repetition, TypeOpts);
 avro_schema_to_parquet(Sc, _Name, _Repetition, _Parent, _Opts) ->
   throw_unsupported_type(Sc).
 

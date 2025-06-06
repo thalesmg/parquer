@@ -520,6 +520,22 @@ nested_record1_test() ->
     parquer_schema_avro:from_avro(read_example_avro_sc("nested_record1.avsc"))
    ).
 
+fixed1_test() ->
+  ?assertMatch(
+    #{ ?name := <<"root">>
+     , ?repetition := ?REPETITION_REPEATED
+     , ?fields :=
+         [ #{ ?id := 1
+            , ?name := <<"f1">>
+            , ?repetition := ?REPETITION_REQUIRED
+            , ?type_length := 16
+            , ?primitive_type := ?FIXED_LEN_BYTE_ARRAY
+            }
+         ]
+     },
+    parquer_schema_avro:from_avro(read_example_avro_sc("fixed1.avsc"))
+   ).
+
 %%%_* Emacs ====================================================================
 %%% Local Variables:
 %%% erlang-indent-level: 2
