@@ -118,12 +118,20 @@ avro_schema_to_parquet(#{?t := <<"array">>} = Sc, Name, ListRepetition, Parent, 
     #{?write_old_list_structure := true} ->
       %% todo: raise a more descriptive error if the schema allows nulls here.
       %% currently, it just raises `{unsupported_type, null}`.
+      maybe
+        {?REPETITION_OPTIONAL, _} ?= parse_maybe_union(InnerSc0),
+        %% Old schema does not support null elements.
+        throw_unsupported_type(Sc, #{
+          hint => <<"Null array elements are not allowed when "
+                    "`write_old_list_structure=true`">>
+        })
+      end,
       parquer_schema:list(Name, ListRepetition, common_opts(Parent), [
         avro_schema_to_parquet(InnerSc0, <<"array">>, ?REPETITION_REPEATED, Sc, Opts)
       ])
   end;
 avro_schema_to_parquet(Sc, _Name, _Repetition, _Parent, _Opts) ->
-  throw({unsupported_type, Sc}).
+  throw_unsupported_type(Sc).
 
 parse_maybe_union(Types) when is_list(Types) ->
   {MaybeNull, Rest} = lists:partition(fun(T) -> T == <<"null">> end, Types),
@@ -151,6 +159,14 @@ common_opts(#{?t := <<"array">>} = ParentSc) ->
 common_opts(ParentSc) ->
   Id = maps:get(?i, ParentSc, ?undefined),
   #{?id => Id}.
+
+-spec throw_unsupported_type(binary() | list() | map()) -> no_return().
+throw_unsupported_type(Sc) ->
+  throw_unsupported_type(Sc, _ExtraContext = #{}).
+
+-spec throw_unsupported_type(binary() | list() | map(), map()) -> no_return().
+throw_unsupported_type(Sc, ExtraContext) ->
+  throw(ExtraContext#{reason => unsupported_type, type => Sc}).
 
 %%%_* Emacs ====================================================================
 %%% Local Variables:
