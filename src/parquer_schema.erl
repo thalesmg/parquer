@@ -27,7 +27,7 @@
   type/2,
   type/3,
 
-  %% Logical types
+  %% Logical types helpers
   string/2,
   string/3,
   binary/2,
@@ -36,6 +36,12 @@
   list/4,
   map/3,
   map/4,
+
+  %% Logical types
+  lt_string/0,
+  lt_list/0,
+  lt_map/0,
+  lt_enum/0,
 
   %% Primitive types
   bool/2,
@@ -218,6 +224,8 @@ lt_string() -> #{?name => ?lt_string}.
 lt_list() -> #{?name => ?lt_list}.
 
 lt_map() -> #{?name => ?lt_map}.
+
+lt_enum() -> #{?name => ?lt_enum}.
 
 do_flatten(#{?fields := Fields} = Type, Context0) ->
   #{ ?path := Path

@@ -57,6 +57,7 @@
 -define(CONVERTED_TYPE_LIST, list).
 -define(CONVERTED_TYPE_MAP, map).
 -define(CONVERTED_TYPE_MAP_KEY_VALUE, map_key_value).
+-define(CONVERTED_TYPE_ENUM, enum).
 
 -define(undefined, undefined).
 

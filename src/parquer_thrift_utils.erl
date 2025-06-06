@@ -188,7 +188,9 @@ primitive_type_of(?FIXED_LEN_BYTE_ARRAY) -> ?Parquer_parquet_Type_FIXED_LEN_BYTE
 converted_type_of(undefined) -> undefined;
 converted_type_of(?CONVERTED_TYPE_UTF8) -> ?Parquer_parquet_ConvertedType_UTF8;
 converted_type_of(?CONVERTED_TYPE_LIST) -> ?Parquer_parquet_ConvertedType_LIST;
-converted_type_of(?CONVERTED_TYPE_MAP) -> ?Parquer_parquet_ConvertedType_MAP.
+converted_type_of(?CONVERTED_TYPE_MAP) -> ?Parquer_parquet_ConvertedType_MAP;
+converted_type_of(?CONVERTED_TYPE_MAP_KEY_VALUE) -> ?Parquer_parquet_ConvertedType_MAP_KEY_VALUE;
+converted_type_of(?CONVERTED_TYPE_ENUM) -> ?Parquer_parquet_ConvertedType_ENUM.
 
 repetition_type_of(?REPETITION_OPTIONAL) -> ?Parquer_parquet_FieldRepetitionType_OPTIONAL;
 repetition_type_of(?REPETITION_REPEATED) -> ?Parquer_parquet_FieldRepetitionType_REPEATED;

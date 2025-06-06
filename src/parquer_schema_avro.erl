@@ -96,8 +96,13 @@ avro_schema_to_parquet(<<"double">>, Name, Repetition, Parent, _Opts) ->
 avro_schema_to_parquet(<<"bytes">>, Name, Repetition, Parent, _Opts) ->
   parquer_schema:byte_array(Name, Repetition, common_opts(Parent));
 avro_schema_to_parquet(Types, Name, Repetition, Parent, Opts) when is_list(Types) ->
+  TypeOpts0 = common_opts(Parent),
+  TypeOpts = TypeOpts0#{
+    ?logical_type => parquer_schema:lt_enum(),
+    ?converted_type => ?CONVERTED_TYPE_ENUM
+  },
   parquer_schema:group(
-    Name, Repetition, common_opts(Parent),
+    Name, Repetition, TypeOpts,
     lists:map(
       fun({I, T}) ->
           Name1 = <<Name/binary, "_", (integer_to_binary(I))/binary>>,

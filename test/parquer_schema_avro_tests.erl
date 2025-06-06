@@ -464,8 +464,36 @@ map1_test_() ->
          parquer_schema_avro:from_avro(read_example_avro_sc("null_map_non_null_value.avsc"))
        )
     }
-  ]
-  .
+  ].
+
+enum_test_() ->
+  [ { "non-null enum"
+    , ?_assertMatch(
+         #{ ?name := <<"root">>
+          , ?repetition := ?REPETITION_REPEATED
+          , ?fields :=
+              [#{ ?id := 1
+                , ?name := <<"f1">>
+                , ?converted_type := ?CONVERTED_TYPE_ENUM
+                , ?logical_type := #{?name := ?lt_enum}
+                , ?repetition := ?REPETITION_REQUIRED
+                , ?fields := [
+                    #{ ?id := 1
+                     , ?name := <<"f1_1">>
+                     , ?primitive_type := ?INT32
+                     , ?repetition := ?REPETITION_OPTIONAL
+                     }
+                  , #{ ?id := 1
+                     , ?name := <<"f1_2">>
+                     , ?primitive_type := ?BOOLEAN
+                     , ?repetition := ?REPETITION_OPTIONAL
+                     }
+                  ]
+                }]
+          },
+         parquer_schema_avro:from_avro(single_field_record([<<"int">>, <<"boolean">>]))
+        )}
+  ].
 
 %%%_* Emacs ====================================================================
 %%% Local Variables:
