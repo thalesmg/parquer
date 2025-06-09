@@ -43,6 +43,7 @@ all_logical_types() ->
   , logical_type(?lt_list)
   , logical_type(?lt_map)
   , logical_type(?lt_enum)
+  , logical_type(?lt_decimal, #{?precision => 8, ?scale => 2})
   , logical_type(?lt_date)
   , logical_type(?lt_uuid)
   , logical_type(?lt_unknown)

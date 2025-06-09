@@ -254,6 +254,13 @@ logical_type_of(#{?name := ?lt_geography} = T) ->
   #'logicalType'{
      gEOGRAPHY =
        #'geographyType'{crs = CRS, algorithm = Algorithm}
+  };
+logical_type_of(#{?name := ?lt_decimal} = T) ->
+  Precision = maps:get(?precision, T),
+  Scale = maps:get(?scale, T),
+  #'logicalType'{
+     dECIMAL =
+       #'decimalType'{precision = Precision, scale = Scale}
   }.
 
 %%%_* Emacs ====================================================================

@@ -42,6 +42,7 @@
   lt_list/0,
   lt_map/0,
   lt_enum/0,
+  lt_decimal/1,
 
   %% Primitive types
   bool/2,
@@ -226,6 +227,9 @@ lt_list() -> #{?name => ?lt_list}.
 lt_map() -> #{?name => ?lt_map}.
 
 lt_enum() -> #{?name => ?lt_enum}.
+
+lt_decimal(#{?precision := Precision, ?scale := Scale}) ->
+  #{?name => ?lt_decimal, ?precision => Precision, ?scale => Scale}.
 
 do_flatten(#{?fields := Fields} = Type, Context0) ->
   #{ ?path := Path

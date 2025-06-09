@@ -39,6 +39,7 @@
 -define(lt_list, list).
 -define(lt_map, map).
 -define(lt_enum, enum).
+-define(lt_decimal, decimal).
 -define(lt_date, date).
 -define(lt_uuid, uuid).
 -define(lt_unknown, unknown).
@@ -79,8 +80,10 @@
 -define(num_rows, num_rows).
 -define(num_values, num_values).
 -define(offset, offset).
+-define(precision, precision).
 -define(primitive_type, primitive_type).
 -define(repetition, repetition).
+-define(scale, scale).
 -define(specification_version, specification_version).
 -define(type_length, type_length).
 -define(unit, unit).

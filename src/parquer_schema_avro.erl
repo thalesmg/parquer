@@ -147,7 +147,11 @@ avro_schema_to_parquet(#{?t := <<"fixed">>} = Sc, Name, Repetition, Parent, _Opt
   #{ <<"size">> := TypeLength
    } = Sc,
   TypeOpts0 = common_opts(Parent),
-  TypeOpts = TypeOpts0#{?type_length => TypeLength},
+  LogicalType = logical_type_of(Sc),
+  TypeOpts = TypeOpts0#{
+    ?type_length => TypeLength,
+    ?logical_type => LogicalType
+  },
   parquer_schema:fixed_len_byte_array(Name, Repetition, TypeOpts);
 avro_schema_to_parquet(Sc, _Name, _Repetition, _Parent, _Opts) ->
   throw_unsupported_type(Sc).
@@ -186,6 +190,13 @@ throw_unsupported_type(Sc) ->
 -spec throw_unsupported_type(binary() | list() | map(), map()) -> no_return().
 throw_unsupported_type(Sc, ExtraContext) ->
   throw(ExtraContext#{reason => unsupported_type, type => Sc}).
+
+logical_type_of(#{<<"logicalType">> := <<"decimal">>} = Sc) ->
+  Precision = maps:get(<<"precision">>, Sc),
+  Scale = maps:get(<<"scale">>, Sc),
+  parquer_schema:lt_decimal(#{?precision => Precision, ?scale => Scale});
+logical_type_of(_) ->
+  ?undefined.
 
 %%%_* Emacs ====================================================================
 %%% Local Variables:
