@@ -23,6 +23,7 @@ jobs:
           otp-version: '27'
           rebar3-version: '3.24.0'
 
+      - run: scripts/format.sh check
       - run: rebar3 dialyzer
       - run: rebar3 xref
 

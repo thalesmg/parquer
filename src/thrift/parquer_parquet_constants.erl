@@ -7,4 +7,3 @@
 -module(parquer_parquet_constants).
 
 -include("parquer_parquet_types.hrl").
-

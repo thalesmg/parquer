@@ -16,22 +16,22 @@
 -module(parquer_test_utils).
 
 -export([
-  all/1,
-  groups/1,
-  matrix_cases/1,
-  matrix_to_groups/2,
-  get_matrix_params/3,
-  group_path/1
+    all/1,
+    groups/1,
+    matrix_cases/1,
+    matrix_to_groups/2,
+    get_matrix_params/3,
+    group_path/1
 ]).
 
 all(Module) ->
-  All0 = all0(Module),
-  All = All0 -- matrix_cases(Module),
-  Groups = lists:map(fun({G, _, _}) -> {group, G} end, groups(Module)),
-  Groups ++ All.
+    All0 = all0(Module),
+    All = All0 -- matrix_cases(Module),
+    Groups = lists:map(fun({G, _, _}) -> {group, G} end, groups(Module)),
+    Groups ++ All.
 
 groups(Module) ->
-  matrix_to_groups(Module, matrix_cases(Module)).
+    matrix_to_groups(Module, matrix_cases(Module)).
 
 matrix_cases(Module) ->
     lists:filter(
@@ -45,7 +45,7 @@ matrix_cases(Module) ->
     ).
 
 get_matrix_params(Module, Group, Default) ->
-  persistent_term:get({Module, Group}, Default).
+    persistent_term:get({Module, Group}, Default).
 
 get_tc_prop(Module, TestCase, Key, Default) ->
     maybe
@@ -156,33 +156,30 @@ group_path(Config) ->
     end.
 
 all0(Module) ->
-  lists:usort([
-    F
-    || {F, 1} <- Module:module_info(exports),
-       string:substr(atom_to_list(F), 1, 2) == "t_"
-  ]).
+    lists:usort([
+        F
+     || {F, 1} <- Module:module_info(exports),
+        string:substr(atom_to_list(F), 1, 2) == "t_"
+    ]).
 
 extract_params(Module, Rows0) ->
-  {Rows, Params} =
-    lists:foldr(
-      fun({Name0, Params}, {RowsAcc, ParamsAcc0}) ->
-           N = erlang:unique_integer([positive]),
-           Name1 = atom_to_binary(Name0),
-           Name = binary_to_atom(iolist_to_binary([Name1, "_", integer_to_binary(N)])),
-           ParamsAcc = [{Name, Params} | ParamsAcc0],
-           {[Name | RowsAcc], ParamsAcc};
-         (Name, {RowsAcc, ParamsAcc0}) when is_atom(Name) ->
-           {[Name | RowsAcc], ParamsAcc0}
-      end,
-      {[], []},
-      Rows0
-     ),
-  lists:foreach(
-    fun({Name, ParamsIn}) -> persistent_term:put({Module, Name}, ParamsIn) end,
-    Params),
-  Rows.
-
-%%%_* Emacs ====================================================================
-%%% Local Variables:
-%%% erlang-indent-level: 2
-%%% End:
+    {Rows, Params} =
+        lists:foldr(
+            fun
+                ({Name0, Params}, {RowsAcc, ParamsAcc0}) ->
+                    N = erlang:unique_integer([positive]),
+                    Name1 = atom_to_binary(Name0),
+                    Name = binary_to_atom(iolist_to_binary([Name1, "_", integer_to_binary(N)])),
+                    ParamsAcc = [{Name, Params} | ParamsAcc0],
+                    {[Name | RowsAcc], ParamsAcc};
+                (Name, {RowsAcc, ParamsAcc0}) when is_atom(Name) ->
+                    {[Name | RowsAcc], ParamsAcc0}
+            end,
+            {[], []},
+            Rows0
+        ),
+    lists:foreach(
+        fun({Name, ParamsIn}) -> persistent_term:put({Module, Name}, ParamsIn) end,
+        Params
+    ),
+    Rows.

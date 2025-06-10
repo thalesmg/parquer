@@ -24,46 +24,49 @@
 %%------------------------------------------------------------------------------
 
 all_converted_types() ->
-  [ ?CONVERTED_TYPE_LIST
-  , ?CONVERTED_TYPE_UTF8
-  , ?CONVERTED_TYPE_ENUM
-  , ?CONVERTED_TYPE_MAP
-  , ?CONVERTED_TYPE_MAP_KEY_VALUE
-  ].
+    [
+        ?CONVERTED_TYPE_LIST,
+        ?CONVERTED_TYPE_UTF8,
+        ?CONVERTED_TYPE_ENUM,
+        ?CONVERTED_TYPE_MAP,
+        ?CONVERTED_TYPE_MAP_KEY_VALUE
+    ].
 
 logical_type(T) ->
-  logical_type(T, #{}).
+    logical_type(T, #{}).
 logical_type(T, Extra) ->
-  Extra#{?name => T}.
+    Extra#{?name => T}.
 
 all_logical_types() ->
-  TimeUnit1 = #'timeUnit'{mILLIS = #'milliSeconds'{}},
-  TimeUnit2 = #'timeUnit'{nANOS =  #'nanoSeconds'{}},
-  [ logical_type(?lt_string)
-  , logical_type(?lt_list)
-  , logical_type(?lt_map)
-  , logical_type(?lt_enum)
-  , logical_type(?lt_decimal, #{?precision => 8, ?scale => 2})
-  , logical_type(?lt_date)
-  , logical_type(?lt_uuid)
-  , logical_type(?lt_unknown)
-  , logical_type(?lt_json)
-  , logical_type(?lt_bson)
-  , logical_type(?lt_float16)
-  , logical_type(?lt_time, #{?unit => TimeUnit1, ?is_adjusted_to_utc => true})
-  , logical_type(?lt_timestamp, #{?unit => TimeUnit2, ?is_adjusted_to_utc => false})
-  , logical_type(?lt_int, #{?bit_width => 3, ?is_signed => true})
-  , logical_type(?lt_variant, #{?specification_version => 10})
-  , logical_type(?lt_geometry, #{?crs => <<"crs">>})
-  , logical_type(?lt_geography, #{?crs => <<"crs">>, ?algorithm => <<"algo">>})
-  ].
+    TimeUnit1 = #'timeUnit'{mILLIS = #'milliSeconds'{}},
+    TimeUnit2 = #'timeUnit'{nANOS = #'nanoSeconds'{}},
+    [
+        logical_type(?lt_string),
+        logical_type(?lt_list),
+        logical_type(?lt_map),
+        logical_type(?lt_enum),
+        logical_type(?lt_decimal, #{?precision => 8, ?scale => 2}),
+        logical_type(?lt_date),
+        logical_type(?lt_uuid),
+        logical_type(?lt_unknown),
+        logical_type(?lt_json),
+        logical_type(?lt_bson),
+        logical_type(?lt_float16),
+        logical_type(?lt_time, #{?unit => TimeUnit1, ?is_adjusted_to_utc => true}),
+        logical_type(?lt_timestamp, #{?unit => TimeUnit2, ?is_adjusted_to_utc => false}),
+        logical_type(?lt_int, #{?bit_width => 3, ?is_signed => true}),
+        logical_type(?lt_variant, #{?specification_version => 10}),
+        logical_type(?lt_geometry, #{?crs => <<"crs">>}),
+        logical_type(?lt_geography, #{?crs => <<"crs">>, ?algorithm => <<"algo">>})
+    ].
 
 schema_element_params(LogicalType, ConvertedType) ->
-  #{ ?name => <<"col">>
-   , ?repetition => ?REPETITION_REQUIRED
-   , ?logical_type => LogicalType
-   , ?converted_type => ConvertedType
-   }.
+    #{
+        ?name => <<"col">>,
+        ?repetition => ?REPETITION_REQUIRED,
+        ?logical_type => LogicalType,
+        ?converted_type => ConvertedType
+    }.
 
 %%------------------------------------------------------------------------------
 %% Helper fns
@@ -71,21 +74,18 @@ schema_element_params(LogicalType, ConvertedType) ->
 
 %% Only to check we have clauses for all constants; i.e., it doesn't crash.
 logical_type_coverage_test_() ->
-  [ ?_test(
-       parquer_thrift_utils:schema_element(schema_element_params(LogicalType, ?undefined))
-      )
-  || LogicalType <- all_logical_types()
-  ].
+    [
+        ?_test(
+            parquer_thrift_utils:schema_element(schema_element_params(LogicalType, ?undefined))
+        )
+     || LogicalType <- all_logical_types()
+    ].
 
 %% Only to check we have clauses for all constants; i.e., it doesn't crash.
 converted_type_coverage_test_() ->
-  [ ?_test(
-       parquer_thrift_utils:schema_element(schema_element_params(?undefined, ConvertedType))
-      )
-  || ConvertedType <- all_converted_types()
-  ].
-
-%%%_* Emacs ====================================================================
-%%% Local Variables:
-%%% erlang-indent-level: 2
-%%% End:
+    [
+        ?_test(
+            parquer_thrift_utils:schema_element(schema_element_params(?undefined, ConvertedType))
+        )
+     || ConvertedType <- all_converted_types()
+    ].

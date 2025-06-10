@@ -17,17 +17,17 @@
 
 %% API
 -export([
-  serialize/1,
+    serialize/1,
 
-  file_metadata/1,
-  column_chunk/1,
-  column_metadata/1,
-  row_group/1,
-  data_page_header_v1/1,
-  data_page_header_v2/1,
-  dict_page_header/1,
-  page_header/1,
-  schema_element/1
+    file_metadata/1,
+    column_chunk/1,
+    column_metadata/1,
+    row_group/1,
+    data_page_header_v1/1,
+    data_page_header_v2/1,
+    dict_page_header/1,
+    page_header/1,
+    schema_element/1
 ]).
 
 -include("parquer.hrl").
@@ -40,19 +40,20 @@
 
 %% From thrift, not exposed...
 -record(protocol, {module, data}).
--record(t_compact, {transport,
-  % state for pending boolean fields
-  read_stack,
-  read_value,
-  write_stack,
-  write_id
+-record(t_compact, {
+    transport,
+    % state for pending boolean fields
+    read_stack,
+    read_value,
+    write_stack,
+    write_id
 }).
 -record(t_transport, {
-  module,
-  state
+    module,
+    state
 }).
 -record(t_membuffer, {
-  buffer
+    buffer
 }).
 
 %%------------------------------------------------------------------------------
@@ -60,115 +61,115 @@
 %%------------------------------------------------------------------------------
 
 serialize(Struct) ->
-  Type = element(1, Struct),
-  Info = parquer_parquet_types:struct_info(Type),
-  MemWriter0 = mem_writer(),
-  {MemWriter, ok} = thrift_protocol:write(MemWriter0, {Info, Struct}),
-  get_buffer(MemWriter).
+    Type = element(1, Struct),
+    Info = parquer_parquet_types:struct_info(Type),
+    MemWriter0 = mem_writer(),
+    {MemWriter, ok} = thrift_protocol:write(MemWriter0, {Info, Struct}),
+    get_buffer(MemWriter).
 
 file_metadata(Params) ->
-  #'fileMetaData'{
-    version = maps:get(?version, Params),
-    schema = maps:get(?schema, Params),
-    num_rows = maps:get(?num_rows, Params),
-    row_groups = maps:get(?row_groups, Params)
-  }.
+    #'fileMetaData'{
+        version = maps:get(?version, Params),
+        schema = maps:get(?schema, Params),
+        num_rows = maps:get(?num_rows, Params),
+        row_groups = maps:get(?row_groups, Params)
+    }.
 
 column_chunk(Params) ->
-  #'columnChunk'{
-    file_offset = maps:get(?offset, Params, 0),
-    meta_data = maps:get(?metadata, Params)
-  }.
+    #'columnChunk'{
+        file_offset = maps:get(?offset, Params, 0),
+        meta_data = maps:get(?metadata, Params)
+    }.
 
 column_metadata(Params) ->
-  #'columnMetaData'{
-    type = primitive_type_of(maps:get(?type, Params)),
-    num_values = maps:get(?num_values, Params),
-    encodings = lists:map(fun encoding_of/1, maps:get(?encodings, Params)),
-    path_in_schema = maps:get(?path_in_schema, Params),
-    codec = codec_of(maps:get(?codec, Params)),
-    total_uncompressed_size = maps:get(?total_uncompressed_size, Params),
-    total_compressed_size = maps:get(?total_compressed_size, Params),
-    data_page_offset = maps:get(?data_page_offset, Params),
-    dictionary_page_offset = maps:get(?dict_page_offset, Params, ?undefined)
-  }.
+    #'columnMetaData'{
+        type = primitive_type_of(maps:get(?type, Params)),
+        num_values = maps:get(?num_values, Params),
+        encodings = lists:map(fun encoding_of/1, maps:get(?encodings, Params)),
+        path_in_schema = maps:get(?path_in_schema, Params),
+        codec = codec_of(maps:get(?codec, Params)),
+        total_uncompressed_size = maps:get(?total_uncompressed_size, Params),
+        total_compressed_size = maps:get(?total_compressed_size, Params),
+        data_page_offset = maps:get(?data_page_offset, Params),
+        dictionary_page_offset = maps:get(?dict_page_offset, Params, ?undefined)
+    }.
 
 row_group(Params) ->
-  #'rowGroup'{
-    columns = maps:get(?column_chunks, Params),
-    total_byte_size = maps:get(?total_uncompressed_size, Params),
-    num_rows = maps:get(?num_rows, Params),
-    %% file_offset = maps:get(?file_offset, Params),
-    total_compressed_size = maps:get(?total_compressed_size, Params)
-  }.
+    #'rowGroup'{
+        columns = maps:get(?column_chunks, Params),
+        total_byte_size = maps:get(?total_uncompressed_size, Params),
+        num_rows = maps:get(?num_rows, Params),
+        %% file_offset = maps:get(?file_offset, Params),
+        total_compressed_size = maps:get(?total_compressed_size, Params)
+    }.
 
 data_page_header_v1(Params) ->
-  #'dataPageHeader'{
-     num_values = maps:get(?num_values, Params),
-     encoding = encoding_of(maps:get(?encoding, Params)),
-     definition_level_encoding = encoding_of(maps:get(?definition_level_encoding, Params)),
-     repetition_level_encoding = encoding_of(maps:get(?repetition_level_encoding, Params))
-  }.
+    #'dataPageHeader'{
+        num_values = maps:get(?num_values, Params),
+        encoding = encoding_of(maps:get(?encoding, Params)),
+        definition_level_encoding = encoding_of(maps:get(?definition_level_encoding, Params)),
+        repetition_level_encoding = encoding_of(maps:get(?repetition_level_encoding, Params))
+    }.
 
 data_page_header_v2(Params) ->
-  #'dataPageHeaderV2'{
-     num_values = maps:get(?num_values, Params),
-     num_nulls = maps:get(?num_nulls, Params),
-     num_rows = maps:get(?num_rows, Params),
-     encoding = encoding_of(maps:get(?encoding, Params)),
-     definition_levels_byte_length = maps:get(?definition_levels_byte_length, Params),
-     repetition_levels_byte_length = maps:get(?repetition_levels_byte_length, Params)
-  }.
+    #'dataPageHeaderV2'{
+        num_values = maps:get(?num_values, Params),
+        num_nulls = maps:get(?num_nulls, Params),
+        num_rows = maps:get(?num_rows, Params),
+        encoding = encoding_of(maps:get(?encoding, Params)),
+        definition_levels_byte_length = maps:get(?definition_levels_byte_length, Params),
+        repetition_levels_byte_length = maps:get(?repetition_levels_byte_length, Params)
+    }.
 
 dict_page_header(Params) ->
-  #'dictionaryPageHeader'{
-    num_values = maps:get(?num_values, Params),
-    encoding = encoding_of(maps:get(?encoding, Params)),
-    is_sorted = maps:get(?is_sorted, Params)
-  }.
+    #'dictionaryPageHeader'{
+        num_values = maps:get(?num_values, Params),
+        encoding = encoding_of(maps:get(?encoding, Params)),
+        is_sorted = maps:get(?is_sorted, Params)
+    }.
 
 page_header(Params) ->
-  #'pageHeader'{
-    type = page_type_of(maps:get(?page_type, Params)),
-    uncompressed_page_size = maps:get(?uncompressed_page_size, Params),
-    compressed_page_size = maps:get(?compressed_page_size, Params),
-    data_page_header = maps:get(?data_page_header_v1, Params, ?undefined),
-    data_page_header_v2 = maps:get(?data_page_header_v2, Params, ?undefined),
-    dictionary_page_header = maps:get(?dict_page_header, Params, ?undefined)
-  }.
+    #'pageHeader'{
+        type = page_type_of(maps:get(?page_type, Params)),
+        uncompressed_page_size = maps:get(?uncompressed_page_size, Params),
+        compressed_page_size = maps:get(?compressed_page_size, Params),
+        data_page_header = maps:get(?data_page_header_v1, Params, ?undefined),
+        data_page_header_v2 = maps:get(?data_page_header_v2, Params, ?undefined),
+        dictionary_page_header = maps:get(?dict_page_header, Params, ?undefined)
+    }.
 
 schema_element(Params) ->
-  #'schemaElement'{
-    field_id = maps:get(?id, Params, ?undefined),
-    name = maps:get(?name, Params),
-    type_length = maps:get(?type_length, Params, ?undefined),
-    logicalType = logical_type_of(maps:get(?logical_type, Params, ?undefined)),
-    converted_type = converted_type_of(maps:get(?converted_type, Params, ?undefined)),
-    repetition_type = repetition_type_of(maps:get(?repetition, Params)),
-    num_children = maps:get(?num_children, Params, ?undefined),
-    type = primitive_type_of(maps:get(?primitive_type, Params, ?undefined))
-  }.
+    #'schemaElement'{
+        field_id = maps:get(?id, Params, ?undefined),
+        name = maps:get(?name, Params),
+        type_length = maps:get(?type_length, Params, ?undefined),
+        logicalType = logical_type_of(maps:get(?logical_type, Params, ?undefined)),
+        converted_type = converted_type_of(maps:get(?converted_type, Params, ?undefined)),
+        repetition_type = repetition_type_of(maps:get(?repetition, Params)),
+        num_children = maps:get(?num_children, Params, ?undefined),
+        type = primitive_type_of(maps:get(?primitive_type, Params, ?undefined))
+    }.
 
 %%------------------------------------------------------------------------------
 %% Internal fns
 %%------------------------------------------------------------------------------
 
 mem_writer() ->
-  {ok, Transport} = thrift_membuffer_transport:new(),
-  {ok, Writer} = thrift_compact_protocol:new(Transport),
-  Writer.
+    {ok, Transport} = thrift_membuffer_transport:new(),
+    {ok, Writer} = thrift_compact_protocol:new(Transport),
+    Writer.
 
 get_buffer(MemWriter) ->
-  #protocol{
-    data = #t_compact{
-      transport = #t_transport{
-        state = #t_membuffer{
-          buffer = Buffer
+    #protocol{
+        data = #t_compact{
+            transport = #t_transport{
+                state = #t_membuffer{
+                    buffer = Buffer
+                }
+            }
         }
-      }
-    }
-  } = MemWriter,
-  Buffer.
+    } = MemWriter,
+    Buffer.
 
 encoding_of(?ENCODING_PLAIN) -> ?Parquer_parquet_Encoding_PLAIN;
 encoding_of(?ENCODING_PLAIN_DICT) -> ?Parquer_parquet_Encoding_PLAIN_DICTIONARY;
@@ -204,66 +205,75 @@ codec_of(?COMPRESSION_NONE) -> ?Parquer_parquet_CompressionCodec_UNCOMPRESSED;
 codec_of(?COMPRESSION_ZSTD) -> ?Parquer_parquet_CompressionCodec_ZSTD;
 codec_of(?COMPRESSION_SNAPPY) -> ?Parquer_parquet_CompressionCodec_SNAPPY.
 
-logical_type_of(?undefined) -> ?undefined;
-logical_type_of(#{?name := ?lt_string}) -> #'logicalType'{sTRING = #'stringType'{}};
-logical_type_of(#{?name := ?lt_list}) -> #'logicalType'{lIST = #'listType'{}};
-logical_type_of(#{?name := ?lt_map}) -> #'logicalType'{mAP = #'mapType'{}};
-logical_type_of(#{?name := ?lt_enum}) -> #'logicalType'{eNUM = #'enumType'{}};
-logical_type_of(#{?name := ?lt_date}) -> #'logicalType'{dATE = #'dateType'{}};
-logical_type_of(#{?name := ?lt_uuid}) -> #'logicalType'{uUID = #'uUIDType'{}};
-logical_type_of(#{?name := ?lt_unknown}) -> #'logicalType'{uNKNOWN = #'nullType'{}};
-logical_type_of(#{?name := ?lt_json}) -> #'logicalType'{jSON = #'jsonType'{}};
-logical_type_of(#{?name := ?lt_bson}) -> #'logicalType'{bSON = #'bsonType'{}};
-logical_type_of(#{?name := ?lt_float16}) -> #'logicalType'{fLOAT16 = #'float16Type'{}};
+logical_type_of(?undefined) ->
+    ?undefined;
+logical_type_of(#{?name := ?lt_string}) ->
+    #'logicalType'{sTRING = #'stringType'{}};
+logical_type_of(#{?name := ?lt_list}) ->
+    #'logicalType'{lIST = #'listType'{}};
+logical_type_of(#{?name := ?lt_map}) ->
+    #'logicalType'{mAP = #'mapType'{}};
+logical_type_of(#{?name := ?lt_enum}) ->
+    #'logicalType'{eNUM = #'enumType'{}};
+logical_type_of(#{?name := ?lt_date}) ->
+    #'logicalType'{dATE = #'dateType'{}};
+logical_type_of(#{?name := ?lt_uuid}) ->
+    #'logicalType'{uUID = #'uUIDType'{}};
+logical_type_of(#{?name := ?lt_unknown}) ->
+    #'logicalType'{uNKNOWN = #'nullType'{}};
+logical_type_of(#{?name := ?lt_json}) ->
+    #'logicalType'{jSON = #'jsonType'{}};
+logical_type_of(#{?name := ?lt_bson}) ->
+    #'logicalType'{bSON = #'bsonType'{}};
+logical_type_of(#{?name := ?lt_float16}) ->
+    #'logicalType'{fLOAT16 = #'float16Type'{}};
 logical_type_of(#{?name := ?lt_time, ?unit := Unit, ?is_adjusted_to_utc := IsAdjusted}) ->
-  #'logicalType'{
-     tIME =
-       #'timeType'{ isAdjustedToUTC = IsAdjusted
-                  , unit = Unit
-                  }
-  };
+    #'logicalType'{
+        tIME =
+            #'timeType'{
+                isAdjustedToUTC = IsAdjusted,
+                unit = Unit
+            }
+    };
 logical_type_of(#{?name := ?lt_timestamp, ?unit := Unit, ?is_adjusted_to_utc := IsAdjusted}) ->
-  #'logicalType'{
-     tIMESTAMP =
-       #'timestampType'{ isAdjustedToUTC = IsAdjusted
-                       , unit = Unit
-                       }
-  };
+    #'logicalType'{
+        tIMESTAMP =
+            #'timestampType'{
+                isAdjustedToUTC = IsAdjusted,
+                unit = Unit
+            }
+    };
 logical_type_of(#{?name := ?lt_int, ?bit_width := BitWidth, ?is_signed := IsSigned}) ->
-  #'logicalType'{
-     iNTEGER =
-       #'intType'{ bitWidth = BitWidth
-                 , isSigned = IsSigned
-                 }
-  };
+    #'logicalType'{
+        iNTEGER =
+            #'intType'{
+                bitWidth = BitWidth,
+                isSigned = IsSigned
+            }
+    };
 logical_type_of(#{?name := ?lt_variant} = T) ->
-  SpecificationVersion = maps:get(?specification_version, T, ?undefined),
-  #'logicalType'{
-     vARIANT =
-       #'variantType'{specification_version = SpecificationVersion}
-  };
+    SpecificationVersion = maps:get(?specification_version, T, ?undefined),
+    #'logicalType'{
+        vARIANT =
+            #'variantType'{specification_version = SpecificationVersion}
+    };
 logical_type_of(#{?name := ?lt_geometry} = T) ->
-  CRS = maps:get(?crs, T, ?undefined),
-  #'logicalType'{
-     gEOMETRY =
-       #'geometryType'{crs = CRS}
-  };
+    CRS = maps:get(?crs, T, ?undefined),
+    #'logicalType'{
+        gEOMETRY =
+            #'geometryType'{crs = CRS}
+    };
 logical_type_of(#{?name := ?lt_geography} = T) ->
-  Algorithm = maps:get(?algorithm, T, ?undefined),
-  CRS = maps:get(?crs, T, ?undefined),
-  #'logicalType'{
-     gEOGRAPHY =
-       #'geographyType'{crs = CRS, algorithm = Algorithm}
-  };
+    Algorithm = maps:get(?algorithm, T, ?undefined),
+    CRS = maps:get(?crs, T, ?undefined),
+    #'logicalType'{
+        gEOGRAPHY =
+            #'geographyType'{crs = CRS, algorithm = Algorithm}
+    };
 logical_type_of(#{?name := ?lt_decimal} = T) ->
-  Precision = maps:get(?precision, T),
-  Scale = maps:get(?scale, T),
-  #'logicalType'{
-     dECIMAL =
-       #'decimalType'{precision = Precision, scale = Scale}
-  }.
-
-%%%_* Emacs ====================================================================
-%%% Local Variables:
-%%% erlang-indent-level: 2
-%%% End:
+    Precision = maps:get(?precision, T),
+    Scale = maps:get(?scale, T),
+    #'logicalType'{
+        dECIMAL =
+            #'decimalType'{precision = Precision, scale = Scale}
+    }.

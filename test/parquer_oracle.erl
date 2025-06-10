@@ -17,19 +17,19 @@
 
 %% API
 -export([
-  start/1,
-  stop/1,
+    start/1,
+    stop/1,
 
-  command/2
+    command/2
 ]).
 
 %% `gen_server` API
 -export([
-  init/1,
-  terminate/2,
-  handle_call/3,
-  handle_cast/2,
-  handle_info/2
+    init/1,
+    terminate/2,
+    handle_call/3,
+    handle_cast/2,
+    handle_info/2
 ]).
 
 %%------------------------------------------------------------------------------
@@ -57,23 +57,24 @@ command(Pid, Payload) ->
 
 init(Opts) ->
     process_flag(trap_exit, true),
-    #{ program := Program
-     , args := Args
-     , cd := CD
-     } = Opts,
+    #{
+        program := Program,
+        args := Args,
+        cd := CD
+    } = Opts,
     Port = open_port(
-      {spawn_executable, Program},
-      [
-        binary,
-        {line, 4096},
-        {args, Args},
-        {cd, CD}
-      ]
+        {spawn_executable, Program},
+        [
+            binary,
+            {line, 4096},
+            {args, Args},
+            {cd, CD}
+        ]
     ),
     State = #{
-      buffer => [],
-      caller => undefined,
-      port => Port
+        buffer => [],
+        caller => undefined,
+        port => Port
     },
     link(Port),
     {ok, State}.
@@ -95,9 +96,10 @@ handle_cast(_Cast, State) ->
     {noreply, State}.
 
 handle_info({Port, {data, Data0}}, #{port := Port} = State0) ->
-    #{ buffer := Buffer0
-     , caller := From
-     } = State0,
+    #{
+        buffer := Buffer0,
+        caller := From
+    } = State0,
     State =
         case Data0 of
             {noeol, Data} ->

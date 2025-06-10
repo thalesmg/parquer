@@ -79,39 +79,47 @@
 
 %% struct 'sizeStatistics'
 
--record('sizeStatistics', {'unencoded_byte_array_data_bytes' :: integer() | 'undefined',
-                           'repetition_level_histogram' :: list() | 'undefined',
-                           'definition_level_histogram' :: list() | 'undefined'}).
+-record('sizeStatistics', {
+    'unencoded_byte_array_data_bytes' :: integer() | 'undefined',
+    'repetition_level_histogram' :: list() | 'undefined',
+    'definition_level_histogram' :: list() | 'undefined'
+}).
 -type 'sizeStatistics'() :: #'sizeStatistics'{}.
 
 %% struct 'boundingBox'
 
--record('boundingBox', {'xmin' :: float(),
-                        'xmax' :: float(),
-                        'ymin' :: float(),
-                        'ymax' :: float(),
-                        'zmin' :: float() | 'undefined',
-                        'zmax' :: float() | 'undefined',
-                        'mmin' :: float() | 'undefined',
-                        'mmax' :: float() | 'undefined'}).
+-record('boundingBox', {
+    'xmin' :: float(),
+    'xmax' :: float(),
+    'ymin' :: float(),
+    'ymax' :: float(),
+    'zmin' :: float() | 'undefined',
+    'zmax' :: float() | 'undefined',
+    'mmin' :: float() | 'undefined',
+    'mmax' :: float() | 'undefined'
+}).
 -type 'boundingBox'() :: #'boundingBox'{}.
 
 %% struct 'geospatialStatistics'
 
--record('geospatialStatistics', {'bbox' :: 'boundingBox'() | 'undefined',
-                                 'geospatial_types' :: list() | 'undefined'}).
+-record('geospatialStatistics', {
+    'bbox' :: 'boundingBox'() | 'undefined',
+    'geospatial_types' :: list() | 'undefined'
+}).
 -type 'geospatialStatistics'() :: #'geospatialStatistics'{}.
 
 %% struct 'statistics'
 
--record('statistics', {'max' :: string() | binary() | 'undefined',
-                       'min' :: string() | binary() | 'undefined',
-                       'null_count' :: integer() | 'undefined',
-                       'distinct_count' :: integer() | 'undefined',
-                       'max_value' :: string() | binary() | 'undefined',
-                       'min_value' :: string() | binary() | 'undefined',
-                       'is_max_value_exact' :: boolean() | 'undefined',
-                       'is_min_value_exact' :: boolean() | 'undefined'}).
+-record('statistics', {
+    'max' :: string() | binary() | 'undefined',
+    'min' :: string() | binary() | 'undefined',
+    'null_count' :: integer() | 'undefined',
+    'distinct_count' :: integer() | 'undefined',
+    'max_value' :: string() | binary() | 'undefined',
+    'min_value' :: string() | binary() | 'undefined',
+    'is_max_value_exact' :: boolean() | 'undefined',
+    'is_min_value_exact' :: boolean() | 'undefined'
+}).
 -type 'statistics'() :: #'statistics'{}.
 
 %% struct 'stringType'
@@ -156,8 +164,10 @@
 
 %% struct 'decimalType'
 
--record('decimalType', {'scale' :: integer(),
-                        'precision' :: integer()}).
+-record('decimalType', {
+    'scale' :: integer(),
+    'precision' :: integer()
+}).
 -type 'decimalType'() :: #'decimalType'{}.
 
 %% struct 'milliSeconds'
@@ -177,27 +187,35 @@
 
 %% struct 'timeUnit'
 
--record('timeUnit', {'mILLIS' :: 'milliSeconds'() | 'undefined',
-                     'mICROS' :: 'microSeconds'() | 'undefined',
-                     'nANOS' :: 'nanoSeconds'() | 'undefined'}).
+-record('timeUnit', {
+    'mILLIS' :: 'milliSeconds'() | 'undefined',
+    'mICROS' :: 'microSeconds'() | 'undefined',
+    'nANOS' :: 'nanoSeconds'() | 'undefined'
+}).
 -type 'timeUnit'() :: #'timeUnit'{}.
 
 %% struct 'timestampType'
 
--record('timestampType', {'isAdjustedToUTC' :: boolean(),
-                          'unit' = #'timeUnit'{} :: 'timeUnit'()}).
+-record('timestampType', {
+    'isAdjustedToUTC' :: boolean(),
+    'unit' = #'timeUnit'{} :: 'timeUnit'()
+}).
 -type 'timestampType'() :: #'timestampType'{}.
 
 %% struct 'timeType'
 
--record('timeType', {'isAdjustedToUTC' :: boolean(),
-                     'unit' = #'timeUnit'{} :: 'timeUnit'()}).
+-record('timeType', {
+    'isAdjustedToUTC' :: boolean(),
+    'unit' = #'timeUnit'{} :: 'timeUnit'()
+}).
 -type 'timeType'() :: #'timeType'{}.
 
 %% struct 'intType'
 
--record('intType', {'bitWidth' :: integer(),
-                    'isSigned' :: boolean()}).
+-record('intType', {
+    'bitWidth' :: integer(),
+    'isSigned' :: boolean()
+}).
 -type 'intType'() :: #'intType'{}.
 
 %% struct 'jsonType'
@@ -222,52 +240,60 @@
 
 %% struct 'geographyType'
 
--record('geographyType', {'crs' :: string() | binary() | 'undefined',
-                          'algorithm' :: integer() | 'undefined'}).
+-record('geographyType', {
+    'crs' :: string() | binary() | 'undefined',
+    'algorithm' :: integer() | 'undefined'
+}).
 -type 'geographyType'() :: #'geographyType'{}.
 
 %% struct 'logicalType'
 
--record('logicalType', {'sTRING' :: 'stringType'() | 'undefined',
-                        'mAP' :: 'mapType'() | 'undefined',
-                        'lIST' :: 'listType'() | 'undefined',
-                        'eNUM' :: 'enumType'() | 'undefined',
-                        'dECIMAL' :: 'decimalType'() | 'undefined',
-                        'dATE' :: 'dateType'() | 'undefined',
-                        'tIME' :: 'timeType'() | 'undefined',
-                        'tIMESTAMP' :: 'timestampType'() | 'undefined',
-                        'iNTEGER' :: 'intType'() | 'undefined',
-                        'uNKNOWN' :: 'nullType'() | 'undefined',
-                        'jSON' :: 'jsonType'() | 'undefined',
-                        'bSON' :: 'bsonType'() | 'undefined',
-                        'uUID' :: 'uUIDType'() | 'undefined',
-                        'fLOAT16' :: 'float16Type'() | 'undefined',
-                        'vARIANT' :: 'variantType'() | 'undefined',
-                        'gEOMETRY' :: 'geometryType'() | 'undefined',
-                        'gEOGRAPHY' :: 'geographyType'() | 'undefined'}).
+-record('logicalType', {
+    'sTRING' :: 'stringType'() | 'undefined',
+    'mAP' :: 'mapType'() | 'undefined',
+    'lIST' :: 'listType'() | 'undefined',
+    'eNUM' :: 'enumType'() | 'undefined',
+    'dECIMAL' :: 'decimalType'() | 'undefined',
+    'dATE' :: 'dateType'() | 'undefined',
+    'tIME' :: 'timeType'() | 'undefined',
+    'tIMESTAMP' :: 'timestampType'() | 'undefined',
+    'iNTEGER' :: 'intType'() | 'undefined',
+    'uNKNOWN' :: 'nullType'() | 'undefined',
+    'jSON' :: 'jsonType'() | 'undefined',
+    'bSON' :: 'bsonType'() | 'undefined',
+    'uUID' :: 'uUIDType'() | 'undefined',
+    'fLOAT16' :: 'float16Type'() | 'undefined',
+    'vARIANT' :: 'variantType'() | 'undefined',
+    'gEOMETRY' :: 'geometryType'() | 'undefined',
+    'gEOGRAPHY' :: 'geographyType'() | 'undefined'
+}).
 -type 'logicalType'() :: #'logicalType'{}.
 
 %% struct 'schemaElement'
 
--record('schemaElement', {'type' :: integer() | 'undefined',
-                          'type_length' :: integer() | 'undefined',
-                          'repetition_type' :: integer() | 'undefined',
-                          'name' :: string() | binary(),
-                          'num_children' :: integer() | 'undefined',
-                          'converted_type' :: integer() | 'undefined',
-                          'scale' :: integer() | 'undefined',
-                          'precision' :: integer() | 'undefined',
-                          'field_id' :: integer() | 'undefined',
-                          'logicalType' :: 'logicalType'() | 'undefined'}).
+-record('schemaElement', {
+    'type' :: integer() | 'undefined',
+    'type_length' :: integer() | 'undefined',
+    'repetition_type' :: integer() | 'undefined',
+    'name' :: string() | binary(),
+    'num_children' :: integer() | 'undefined',
+    'converted_type' :: integer() | 'undefined',
+    'scale' :: integer() | 'undefined',
+    'precision' :: integer() | 'undefined',
+    'field_id' :: integer() | 'undefined',
+    'logicalType' :: 'logicalType'() | 'undefined'
+}).
 -type 'schemaElement'() :: #'schemaElement'{}.
 
 %% struct 'dataPageHeader'
 
--record('dataPageHeader', {'num_values' :: integer(),
-                           'encoding' :: integer(),
-                           'definition_level_encoding' :: integer(),
-                           'repetition_level_encoding' :: integer(),
-                           'statistics' :: 'statistics'() | 'undefined'}).
+-record('dataPageHeader', {
+    'num_values' :: integer(),
+    'encoding' :: integer(),
+    'definition_level_encoding' :: integer(),
+    'repetition_level_encoding' :: integer(),
+    'statistics' :: 'statistics'() | 'undefined'
+}).
 -type 'dataPageHeader'() :: #'dataPageHeader'{}.
 
 %% struct 'indexPageHeader'
@@ -277,21 +303,25 @@
 
 %% struct 'dictionaryPageHeader'
 
--record('dictionaryPageHeader', {'num_values' :: integer(),
-                                 'encoding' :: integer(),
-                                 'is_sorted' :: boolean() | 'undefined'}).
+-record('dictionaryPageHeader', {
+    'num_values' :: integer(),
+    'encoding' :: integer(),
+    'is_sorted' :: boolean() | 'undefined'
+}).
 -type 'dictionaryPageHeader'() :: #'dictionaryPageHeader'{}.
 
 %% struct 'dataPageHeaderV2'
 
--record('dataPageHeaderV2', {'num_values' :: integer(),
-                             'num_nulls' :: integer(),
-                             'num_rows' :: integer(),
-                             'encoding' :: integer(),
-                             'definition_levels_byte_length' :: integer(),
-                             'repetition_levels_byte_length' :: integer(),
-                             'is_compressed' = true :: boolean() | 'undefined',
-                             'statistics' :: 'statistics'() | 'undefined'}).
+-record('dataPageHeaderV2', {
+    'num_values' :: integer(),
+    'num_nulls' :: integer(),
+    'num_rows' :: integer(),
+    'encoding' :: integer(),
+    'definition_levels_byte_length' :: integer(),
+    'repetition_levels_byte_length' :: integer(),
+    'is_compressed' = true :: boolean() | 'undefined',
+    'statistics' :: 'statistics'() | 'undefined'
+}).
 -type 'dataPageHeaderV2'() :: #'dataPageHeaderV2'{}.
 
 %% struct 'splitBlockAlgorithm'
@@ -326,63 +356,75 @@
 
 %% struct 'bloomFilterHeader'
 
--record('bloomFilterHeader', {'numBytes' :: integer(),
-                              'algorithm' = #'bloomFilterAlgorithm'{} :: 'bloomFilterAlgorithm'(),
-                              'hash' = #'bloomFilterHash'{} :: 'bloomFilterHash'(),
-                              'compression' = #'bloomFilterCompression'{} :: 'bloomFilterCompression'()}).
+-record('bloomFilterHeader', {
+    'numBytes' :: integer(),
+    'algorithm' = #'bloomFilterAlgorithm'{} :: 'bloomFilterAlgorithm'(),
+    'hash' = #'bloomFilterHash'{} :: 'bloomFilterHash'(),
+    'compression' = #'bloomFilterCompression'{} :: 'bloomFilterCompression'()
+}).
 -type 'bloomFilterHeader'() :: #'bloomFilterHeader'{}.
 
 %% struct 'pageHeader'
 
--record('pageHeader', {'type' :: integer(),
-                       'uncompressed_page_size' :: integer(),
-                       'compressed_page_size' :: integer(),
-                       'crc' :: integer() | 'undefined',
-                       'data_page_header' :: 'dataPageHeader'() | 'undefined',
-                       'index_page_header' :: 'indexPageHeader'() | 'undefined',
-                       'dictionary_page_header' :: 'dictionaryPageHeader'() | 'undefined',
-                       'data_page_header_v2' :: 'dataPageHeaderV2'() | 'undefined'}).
+-record('pageHeader', {
+    'type' :: integer(),
+    'uncompressed_page_size' :: integer(),
+    'compressed_page_size' :: integer(),
+    'crc' :: integer() | 'undefined',
+    'data_page_header' :: 'dataPageHeader'() | 'undefined',
+    'index_page_header' :: 'indexPageHeader'() | 'undefined',
+    'dictionary_page_header' :: 'dictionaryPageHeader'() | 'undefined',
+    'data_page_header_v2' :: 'dataPageHeaderV2'() | 'undefined'
+}).
 -type 'pageHeader'() :: #'pageHeader'{}.
 
 %% struct 'keyValue'
 
--record('keyValue', {'key' :: string() | binary(),
-                     'value' :: string() | binary() | 'undefined'}).
+-record('keyValue', {
+    'key' :: string() | binary(),
+    'value' :: string() | binary() | 'undefined'
+}).
 -type 'keyValue'() :: #'keyValue'{}.
 
 %% struct 'sortingColumn'
 
--record('sortingColumn', {'column_idx' :: integer(),
-                          'descending' :: boolean(),
-                          'nulls_first' :: boolean()}).
+-record('sortingColumn', {
+    'column_idx' :: integer(),
+    'descending' :: boolean(),
+    'nulls_first' :: boolean()
+}).
 -type 'sortingColumn'() :: #'sortingColumn'{}.
 
 %% struct 'pageEncodingStats'
 
--record('pageEncodingStats', {'page_type' :: integer(),
-                              'encoding' :: integer(),
-                              'count' :: integer()}).
+-record('pageEncodingStats', {
+    'page_type' :: integer(),
+    'encoding' :: integer(),
+    'count' :: integer()
+}).
 -type 'pageEncodingStats'() :: #'pageEncodingStats'{}.
 
 %% struct 'columnMetaData'
 
--record('columnMetaData', {'type' :: integer(),
-                           'encodings' = [] :: list(),
-                           'path_in_schema' = [] :: list(),
-                           'codec' :: integer(),
-                           'num_values' :: integer(),
-                           'total_uncompressed_size' :: integer(),
-                           'total_compressed_size' :: integer(),
-                           'key_value_metadata' :: list() | 'undefined',
-                           'data_page_offset' :: integer(),
-                           'index_page_offset' :: integer() | 'undefined',
-                           'dictionary_page_offset' :: integer() | 'undefined',
-                           'statistics' :: 'statistics'() | 'undefined',
-                           'encoding_stats' :: list() | 'undefined',
-                           'bloom_filter_offset' :: integer() | 'undefined',
-                           'bloom_filter_length' :: integer() | 'undefined',
-                           'size_statistics' :: 'sizeStatistics'() | 'undefined',
-                           'geospatial_statistics' :: 'geospatialStatistics'() | 'undefined'}).
+-record('columnMetaData', {
+    'type' :: integer(),
+    'encodings' = [] :: list(),
+    'path_in_schema' = [] :: list(),
+    'codec' :: integer(),
+    'num_values' :: integer(),
+    'total_uncompressed_size' :: integer(),
+    'total_compressed_size' :: integer(),
+    'key_value_metadata' :: list() | 'undefined',
+    'data_page_offset' :: integer(),
+    'index_page_offset' :: integer() | 'undefined',
+    'dictionary_page_offset' :: integer() | 'undefined',
+    'statistics' :: 'statistics'() | 'undefined',
+    'encoding_stats' :: list() | 'undefined',
+    'bloom_filter_offset' :: integer() | 'undefined',
+    'bloom_filter_length' :: integer() | 'undefined',
+    'size_statistics' :: 'sizeStatistics'() | 'undefined',
+    'geospatial_statistics' :: 'geospatialStatistics'() | 'undefined'
+}).
 -type 'columnMetaData'() :: #'columnMetaData'{}.
 
 %% struct 'encryptionWithFooterKey'
@@ -392,38 +434,46 @@
 
 %% struct 'encryptionWithColumnKey'
 
--record('encryptionWithColumnKey', {'path_in_schema' = [] :: list(),
-                                    'key_metadata' :: string() | binary() | 'undefined'}).
+-record('encryptionWithColumnKey', {
+    'path_in_schema' = [] :: list(),
+    'key_metadata' :: string() | binary() | 'undefined'
+}).
 -type 'encryptionWithColumnKey'() :: #'encryptionWithColumnKey'{}.
 
 %% struct 'columnCryptoMetaData'
 
--record('columnCryptoMetaData', {'eNCRYPTION_WITH_FOOTER_KEY' :: 'encryptionWithFooterKey'() | 'undefined',
-                                 'eNCRYPTION_WITH_COLUMN_KEY' :: 'encryptionWithColumnKey'() | 'undefined'}).
+-record('columnCryptoMetaData', {
+    'eNCRYPTION_WITH_FOOTER_KEY' :: 'encryptionWithFooterKey'() | 'undefined',
+    'eNCRYPTION_WITH_COLUMN_KEY' :: 'encryptionWithColumnKey'() | 'undefined'
+}).
 -type 'columnCryptoMetaData'() :: #'columnCryptoMetaData'{}.
 
 %% struct 'columnChunk'
 
--record('columnChunk', {'file_path' :: string() | binary() | 'undefined',
-                        'file_offset' = 0 :: integer(),
-                        'meta_data' :: 'columnMetaData'() | 'undefined',
-                        'offset_index_offset' :: integer() | 'undefined',
-                        'offset_index_length' :: integer() | 'undefined',
-                        'column_index_offset' :: integer() | 'undefined',
-                        'column_index_length' :: integer() | 'undefined',
-                        'crypto_metadata' :: 'columnCryptoMetaData'() | 'undefined',
-                        'encrypted_column_metadata' :: string() | binary() | 'undefined'}).
+-record('columnChunk', {
+    'file_path' :: string() | binary() | 'undefined',
+    'file_offset' = 0 :: integer(),
+    'meta_data' :: 'columnMetaData'() | 'undefined',
+    'offset_index_offset' :: integer() | 'undefined',
+    'offset_index_length' :: integer() | 'undefined',
+    'column_index_offset' :: integer() | 'undefined',
+    'column_index_length' :: integer() | 'undefined',
+    'crypto_metadata' :: 'columnCryptoMetaData'() | 'undefined',
+    'encrypted_column_metadata' :: string() | binary() | 'undefined'
+}).
 -type 'columnChunk'() :: #'columnChunk'{}.
 
 %% struct 'rowGroup'
 
--record('rowGroup', {'columns' = [] :: list(),
-                     'total_byte_size' :: integer(),
-                     'num_rows' :: integer(),
-                     'sorting_columns' :: list() | 'undefined',
-                     'file_offset' :: integer() | 'undefined',
-                     'total_compressed_size' :: integer() | 'undefined',
-                     'ordinal' :: integer() | 'undefined'}).
+-record('rowGroup', {
+    'columns' = [] :: list(),
+    'total_byte_size' :: integer(),
+    'num_rows' :: integer(),
+    'sorting_columns' :: list() | 'undefined',
+    'file_offset' :: integer() | 'undefined',
+    'total_compressed_size' :: integer() | 'undefined',
+    'ordinal' :: integer() | 'undefined'
+}).
 -type 'rowGroup'() :: #'rowGroup'{}.
 
 %% struct 'typeDefinedOrder'
@@ -438,65 +488,81 @@
 
 %% struct 'pageLocation'
 
--record('pageLocation', {'offset' :: integer(),
-                         'compressed_page_size' :: integer(),
-                         'first_row_index' :: integer()}).
+-record('pageLocation', {
+    'offset' :: integer(),
+    'compressed_page_size' :: integer(),
+    'first_row_index' :: integer()
+}).
 -type 'pageLocation'() :: #'pageLocation'{}.
 
 %% struct 'offsetIndex'
 
--record('offsetIndex', {'page_locations' = [] :: list(),
-                        'unencoded_byte_array_data_bytes' :: list() | 'undefined'}).
+-record('offsetIndex', {
+    'page_locations' = [] :: list(),
+    'unencoded_byte_array_data_bytes' :: list() | 'undefined'
+}).
 -type 'offsetIndex'() :: #'offsetIndex'{}.
 
 %% struct 'columnIndex'
 
--record('columnIndex', {'null_pages' = [] :: list(),
-                        'min_values' = [] :: list(),
-                        'max_values' = [] :: list(),
-                        'boundary_order' :: integer(),
-                        'null_counts' :: list() | 'undefined',
-                        'repetition_level_histograms' :: list() | 'undefined',
-                        'definition_level_histograms' :: list() | 'undefined'}).
+-record('columnIndex', {
+    'null_pages' = [] :: list(),
+    'min_values' = [] :: list(),
+    'max_values' = [] :: list(),
+    'boundary_order' :: integer(),
+    'null_counts' :: list() | 'undefined',
+    'repetition_level_histograms' :: list() | 'undefined',
+    'definition_level_histograms' :: list() | 'undefined'
+}).
 -type 'columnIndex'() :: #'columnIndex'{}.
 
 %% struct 'aesGcmV1'
 
--record('aesGcmV1', {'aad_prefix' :: string() | binary() | 'undefined',
-                     'aad_file_unique' :: string() | binary() | 'undefined',
-                     'supply_aad_prefix' :: boolean() | 'undefined'}).
+-record('aesGcmV1', {
+    'aad_prefix' :: string() | binary() | 'undefined',
+    'aad_file_unique' :: string() | binary() | 'undefined',
+    'supply_aad_prefix' :: boolean() | 'undefined'
+}).
 -type 'aesGcmV1'() :: #'aesGcmV1'{}.
 
 %% struct 'aesGcmCtrV1'
 
--record('aesGcmCtrV1', {'aad_prefix' :: string() | binary() | 'undefined',
-                        'aad_file_unique' :: string() | binary() | 'undefined',
-                        'supply_aad_prefix' :: boolean() | 'undefined'}).
+-record('aesGcmCtrV1', {
+    'aad_prefix' :: string() | binary() | 'undefined',
+    'aad_file_unique' :: string() | binary() | 'undefined',
+    'supply_aad_prefix' :: boolean() | 'undefined'
+}).
 -type 'aesGcmCtrV1'() :: #'aesGcmCtrV1'{}.
 
 %% struct 'encryptionAlgorithm'
 
--record('encryptionAlgorithm', {'aES_GCM_V1' :: 'aesGcmV1'() | 'undefined',
-                                'aES_GCM_CTR_V1' :: 'aesGcmCtrV1'() | 'undefined'}).
+-record('encryptionAlgorithm', {
+    'aES_GCM_V1' :: 'aesGcmV1'() | 'undefined',
+    'aES_GCM_CTR_V1' :: 'aesGcmCtrV1'() | 'undefined'
+}).
 -type 'encryptionAlgorithm'() :: #'encryptionAlgorithm'{}.
 
 %% struct 'fileMetaData'
 
--record('fileMetaData', {'version' :: integer(),
-                         'schema' = [] :: list(),
-                         'num_rows' :: integer(),
-                         'row_groups' = [] :: list(),
-                         'key_value_metadata' :: list() | 'undefined',
-                         'created_by' :: string() | binary() | 'undefined',
-                         'column_orders' :: list() | 'undefined',
-                         'encryption_algorithm' :: 'encryptionAlgorithm'() | 'undefined',
-                         'footer_signing_key_metadata' :: string() | binary() | 'undefined'}).
+-record('fileMetaData', {
+    'version' :: integer(),
+    'schema' = [] :: list(),
+    'num_rows' :: integer(),
+    'row_groups' = [] :: list(),
+    'key_value_metadata' :: list() | 'undefined',
+    'created_by' :: string() | binary() | 'undefined',
+    'column_orders' :: list() | 'undefined',
+    'encryption_algorithm' :: 'encryptionAlgorithm'() | 'undefined',
+    'footer_signing_key_metadata' :: string() | binary() | 'undefined'
+}).
 -type 'fileMetaData'() :: #'fileMetaData'{}.
 
 %% struct 'fileCryptoMetaData'
 
--record('fileCryptoMetaData', {'encryption_algorithm' = #'encryptionAlgorithm'{} :: 'encryptionAlgorithm'(),
-                               'key_metadata' :: string() | binary() | 'undefined'}).
+-record('fileCryptoMetaData', {
+    'encryption_algorithm' = #'encryptionAlgorithm'{} :: 'encryptionAlgorithm'(),
+    'key_metadata' :: string() | binary() | 'undefined'
+}).
 -type 'fileCryptoMetaData'() :: #'fileCryptoMetaData'{}.
 
 -endif.
