@@ -1,5 +1,7 @@
 # `parquer` - write [Parquet](https://parquet.apache.org/) files with pure Erlang
 
+[![test](https://github.com/emqx/parquer/actions/workflows/test.yaml/badge.svg)](https://github.com/emqx/parquer/actions/workflows/test.yaml)
+
 ## Installation
 
 Rebar3:
