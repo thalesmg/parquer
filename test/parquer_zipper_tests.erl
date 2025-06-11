@@ -463,7 +463,7 @@ repeated_test_() ->
                     #{F0 => ?undefined}
                 )
             )},
-     {"key's value is null",
+        {"key's value is null",
             ?_assertEqual(
                 [{0, 0, ?undefined}],
                 parquer_zipper:flatten(
