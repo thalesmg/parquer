@@ -40,3 +40,28 @@ Writer0 = parquer_writer:new(Schema, _WriterOpts = #{}).
 %% Save data to a file
 file:write_file("/tmp/data.parquet", [IOData1, IOData2]).
 ```
+
+Testing the output:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r dev/dev_requirements.txt
+python -c "from fastparquet import ParquetFile; pf = ParquetFile('/tmp/data.parquet'); print(pf.info); print(pf.head(10))"
+deactivate
+```
+
+## Development
+
+Prerequisites:
+
+- [Erlang/OTP 27+](https://www.erlang.org/downloads)
+- [Rebar3](https://rebar3.org/)
+- [Elixir 1.17+](https://elixir-lang.org/install.html) (optional, for Mix support)
+- [Apache Thrift](https://thrift.apache.org/)
+
+```
+# scripts/generate_code.sh ## only needed if `priv/parquet.thrift` is changed
+scripts/format.sh fix
+rebar3 compile
+```
