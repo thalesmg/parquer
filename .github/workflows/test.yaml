@@ -81,5 +81,13 @@ jobs:
           otp-version: '27'
           rebar3-version: '3.24.0'
 
-      - run: rebar3 eunit
-      - run: rebar3 ct
+      - run: rebar3 eunit -c --cover_export_name eunit
+      - run: rebar3 ct --readable=true -c --cover_export_name ct
+      - run: rebar3 cover
+      - name: convert coverdata to cobertura
+        run: |
+          ./scripts/covertool-2.1.0-emqx-1 -cover _build/test/cover -appname parquer -lookup src
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@ad3126e916f78f00edff4ed0317cf185271ccc2d # v5.4.2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
