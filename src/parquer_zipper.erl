@@ -275,7 +275,9 @@ down(#zipper{node = Node, path = [{Key, ?REPETITION_REQUIRED} = KR | KeyRest], c
     case Node of
         ?undefined ->
             raise_missing_value(Z0, KR, Node);
-        #{Key := ?undefined = InnerNode} ->
+        ?null ->
+            raise_missing_value(Z0, KR, Node);
+        #{Key := InnerNode} when InnerNode == ?undefined; InnerNode == ?null ->
             %% They key itself is defined.
             C1 = push_context_down(Node, KR, [], C0),
             Z0#zipper{
@@ -299,6 +301,8 @@ down(#zipper{node = Node, path = [{Key, ?REPETITION_REPEATED} = KR | KeyRest], c
     case Node of
         ?undefined ->
             false;
+        ?null ->
+            false;
         [] ->
             C1 = push_context_down(Node, KR, [], C0),
             InnerNode = ?undefined,
@@ -319,6 +323,8 @@ down(#zipper{node = Node, path = [{Key, ?REPETITION_REPEATED} = KR | KeyRest], c
             {InnerNode, Rights, DefLevel} =
                 case InnerNode0 of
                     ?undefined ->
+                        {?undefined, [], Z0#zipper.definition_level};
+                    ?null ->
                         {?undefined, [], Z0#zipper.definition_level};
                     [] ->
                         {?undefined, [], Z0#zipper.definition_level};
@@ -341,7 +347,9 @@ down(#zipper{node = Node, path = [{Key, ?REPETITION_OPTIONAL} = KR | KeyRest], c
     case Node of
         ?undefined ->
             false;
-        #{Key := ?undefined = InnerNode} ->
+        ?null ->
+            false;
+        #{Key := InnerNode} when InnerNode == ?undefined; InnerNode == ?null ->
             C1 = push_context_down(Node, KR, [], C0),
             Z0#zipper{
                 node = InnerNode,
@@ -383,6 +391,8 @@ up(#zipper{path = Path, context = #context{parent_nodes = [PNode | _]} = C0} = Z
     DefLevel =
         case Z0#zipper.node of
             ?undefined ->
+                Z0#zipper.definition_level;
+            ?null ->
                 Z0#zipper.definition_level;
             _ ->
                 Z0#zipper.definition_level - definition_level_of(Repetition)

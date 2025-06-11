@@ -61,6 +61,7 @@
 -define(CONVERTED_TYPE_ENUM, enum).
 
 -define(undefined, undefined).
+-define(null, null).
 
 -define(algorithm, algorithm).
 -define(bit_width, bit_width).

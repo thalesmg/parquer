@@ -356,6 +356,23 @@ list_1_test_() ->
                     ]
                 }
             )
+        ),
+        ?_assertEqual(
+            [
+                {0, 2, <<"hi">>},
+                {1, 1, ?undefined},
+                {1, 1, ?undefined}
+            ],
+            parquer_zipper:flatten(
+                Col,
+                #{
+                    F0 => [
+                        #{F1 => <<"hi">>},
+                        #{F1 => ?null},
+                        #{}
+                    ]
+                }
+            )
         )
     ].
 
@@ -396,7 +413,7 @@ missing_values_test_() ->
     Col0 = [{F0, ?REPETITION_REQUIRED}],
     Col1 = [{F0, ?REPETITION_REQUIRED}, {F1, ?REPETITION_REQUIRED}],
     [
-        {"null while required",
+        {"undefined while required",
             ?_assertError(
                 #{
                     reason := missing_required_value,
@@ -404,6 +421,15 @@ missing_values_test_() ->
                     path := [_]
                 },
                 parquer_zipper:flatten(Col0, ?undefined)
+            )},
+        {"null while required",
+            ?_assertError(
+                #{
+                    reason := missing_required_value,
+                    value := ?null,
+                    path := [_]
+                },
+                parquer_zipper:flatten(Col0, ?null)
             )},
         {"required key missing",
             ?_assertError(
@@ -429,12 +455,20 @@ repeated_test_() ->
     F0 = <<"f0">>,
     Col0 = [{F0, ?REPETITION_REPEATED}],
     [
-        {"key's value is null",
+        {"key's value is undefined",
             ?_assertEqual(
                 [{0, 0, ?undefined}],
                 parquer_zipper:flatten(
                     Col0,
                     #{F0 => ?undefined}
+                )
+            )},
+     {"key's value is null",
+            ?_assertEqual(
+                [{0, 0, ?undefined}],
+                parquer_zipper:flatten(
+                    Col0,
+                    #{F0 => ?null}
                 )
             )}
     ].

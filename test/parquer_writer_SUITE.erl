@@ -329,6 +329,7 @@ t_smoke_binary_repeated(TCConfig) when is_list(TCConfig) ->
         #{?F0 => [#{?F1 => <<"hello">>}, #{?F1 => <<"world">>}]},
         #{?F0 => []},
         #{?F0 => ?undefined},
+        #{?F0 => ?null},
         #{?F0 => [#{?F1 => <<"!">>}, #{}]}
     ],
     Parquet = write_and_close(Writer0, Records),
@@ -336,6 +337,7 @@ t_smoke_binary_repeated(TCConfig) when is_list(TCConfig) ->
     ?assertMatch(
         [
             #{?F0 := [#{?F1 := <<"hello">>}, #{?F1 := <<"world">>}]},
+            #{?F0 := []},
             #{?F0 := []},
             #{?F0 := []},
             #{?F0 := [#{?F1 := <<"!">>}, #{?F1 := null}]}
@@ -359,6 +361,9 @@ t_smoke_boolean_optional(TCConfig) when is_list(TCConfig) ->
     Records = [
         #{?F0 => false},
         #{},
+        ?null,
+        #{?F0 => ?undefined},
+        #{?F0 => ?null},
         #{?F0 => true}
     ],
     Parquet = write_and_close(Writer0, Records),
@@ -366,6 +371,9 @@ t_smoke_boolean_optional(TCConfig) when is_list(TCConfig) ->
     ?assertMatch(
         [
             #{?F0 := false},
+            #{?F0 := null},
+            #{?F0 := null},
+            #{?F0 := null},
             #{?F0 := null},
             #{?F0 := true}
         ],
@@ -535,6 +543,7 @@ t_smoke_types_repeated(TCConfig) when is_list(TCConfig) ->
         #{?F0 => [#{?F1 => V0}, #{?F1 => V1}]},
         #{?F0 => []},
         #{?F0 => ?undefined},
+        #{?F0 => ?null},
         #{?F0 => [#{?F1 => V2}, #{}]}
     ],
     Parquet = write_and_close(Writer0, Records),
@@ -545,6 +554,7 @@ t_smoke_types_repeated(TCConfig) when is_list(TCConfig) ->
     ?assertEqual(
         [
             #{?F0 => [#{?F1 => EV0}, #{?F1 => EV1}]},
+            #{?F0 => []},
             #{?F0 => []},
             #{?F0 => []},
             #{?F0 => [#{?F1 => EV2}, #{?F1 => null}]}
