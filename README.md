@@ -1,6 +1,6 @@
 # `parquer` - write [Parquet](https://parquet.apache.org/) files with pure Erlang
 
-[![test](https://github.com/emqx/parquer/actions/workflows/test.yaml/badge.svg)](https://github.com/emqx/parquer/actions/workflows/test.yaml)
+[![test](https://github.com/emqx/parquer/actions/workflows/test.yaml/badge.svg)](https://github.com/emqx/parquer/actions/workflows/test.yaml) [![codecov](https://codecov.io/gh/emqx/parquer/graph/badge.svg?token=DV3YEG9MNM)](https://codecov.io/gh/emqx/parquer)
 
 ## Installation
 
