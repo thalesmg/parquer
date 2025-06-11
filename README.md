@@ -47,7 +47,7 @@ Testing the output:
 python -m venv .venv
 source .venv/bin/activate
 pip install -r dev/dev_requirements.txt
-python -c "from fastparquet import ParquetFile; pf = ParquetFile('/tmp/data.parquet'); print(pf.info())"
+python -c "from fastparquet import ParquetFile; pf = ParquetFile('/tmp/data.parquet'); print(pf.info); pf.head(10)"
 deactivate
 ```
 
@@ -55,13 +55,13 @@ deactivate
 
 Prerequisites:
 
-- [Erlang/OTP 26+](https://www.erlang.org/downloads)
+- [Erlang/OTP 27+](https://www.erlang.org/downloads)
 - [Rebar3](https://rebar3.org/)
 - [Elixir 1.17+](https://elixir-lang.org/install.html) (optional, for Mix support)
 - [Apache Thrift](https://thrift.apache.org/)
 
 ```
-scripts/generate_code.sh
+# scripts/generate_code.sh ## only needed if `priv/parquet.thrift` is changed
 scripts/format.sh fix
 rebar3 compile
 ```
