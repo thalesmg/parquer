@@ -47,7 +47,7 @@ Testing the output:
 python -m venv .venv
 source .venv/bin/activate
 pip install -r dev/dev_requirements.txt
-python -c "from fastparquet import ParquetFile; pf = ParquetFile('/tmp/data.parquet'); print(pf.info); pf.head(10)"
+python -c "from fastparquet import ParquetFile; pf = ParquetFile('/tmp/data.parquet'); print(pf.info); print(pf.head(10))"
 deactivate
 ```
 
