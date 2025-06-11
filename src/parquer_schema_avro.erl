@@ -57,7 +57,7 @@ from_avro(AvroSc) ->
 
 from_avro(#{?t := <<"record">>} = AvroSc, Opts0) ->
     DefaultOpts = #{
-        ?write_old_list_structure => true
+        ?write_old_list_structure => false
     },
     Opts = maps:merge(DefaultOpts, Opts0),
     avro_record_to_parquet(AvroSc, ?REPETITION_REPEATED, Opts).
