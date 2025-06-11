@@ -1,7 +1,7 @@
 %% -*- mode: erlang -*-
 {application, parquer, [
     {description, "Parquet encoding library"},
-    {vsn, "0.1.0"},
+    {vsn, "git"},
     {registered, []},
     {applications, [
         kernel,
