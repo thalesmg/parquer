@@ -35,8 +35,8 @@
 %% Type declarations
 %%------------------------------------------------------------------------------
 
-%% 1 mb
--define(DEFAULT_MAX_ROW_GROUP_BYTES, 1024 * 1024).
+%% 128 mb
+-define(DEFAULT_MAX_ROW_GROUP_BYTES, 128 * 1024 * 1024).
 
 -define(DEFAULT_COMPRESSION, ?COMPRESSION_ZSTD).
 -define(DEFAULT_COMPRESSION_OPTS, #{}).
@@ -119,19 +119,22 @@
 
 ## Options
 
-  * `enable_dictionary` - whether to use dictionary encoding.  Can be set for all columns
-    as a single boolean, or individually by providing a map of column paths with segments
-    separated by dots (e.g.: `<<"my.nested.column">>`) to boolean values.  Only applies to
-    columns that are not boolean.  Default is `true` (enabled for all columns).
+  * `data_page_header_version` - which data page version to use.
+    Valid values: `1` | `2`.
+    Defaults to `1`.
 
   * `default_compression` - the compression algorithm to be used when it's not specified
     per column, along with its options map.
     Valid types: `none` | `snappy` | `zstd`.
     Defaults to {`zstd`, #{}}.
 
-  * `data_page_header_version` - which data page version to use.
-    Valid values: `1` | `2`.
-    Defaults to `1`.
+  * `enable_dictionary` - whether to use dictionary encoding.  Can be set for all columns
+    as a single boolean, or individually by providing a map of column paths with segments
+    separated by dots (e.g.: `<<"my.nested.column">>`) to boolean values.  Only applies to
+    columns that are not boolean.  Default is `true` (enabled for all columns).
+
+  * `max_row_group_bytes` - when the buffered data size surpasses this value
+    (approximately), a new row group will be emitted.  Defaults to 128 MB.
 
 """.
 -type writer_opts() :: #{
