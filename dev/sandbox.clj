@@ -1032,4 +1032,9 @@
       (read-parquet-avro (new-mem-input-file in-ba))
       ))
 
+  (-> (slurp "./test/sample_avro_schemas/timestamps1.avsc")
+      parse-avro-schema
+      parquet-schema<->avro
+      )
+
   :ok)

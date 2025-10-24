@@ -34,6 +34,7 @@ This modules handles converting Avro schemas to Parquet schema.
 -define(t, <<"type">>).
 -define(n, <<"name">>).
 -define(i, <<"field-id">>).
+-define(lt, <<"logicalType">>).
 
 -define(write_old_list_structure, write_old_list_structure).
 
@@ -155,6 +156,13 @@ avro_schema_to_parquet(#{?t := <<"fixed">>} = Sc, Name, Repetition, Parent, _Opt
         ?logical_type => LogicalType
     },
     parquer_schema:fixed_len_byte_array(Name, Repetition, TypeOpts);
+avro_schema_to_parquet(
+    #{?t := <<"long">>, ?lt := <<"timestamp", _/binary>>} = Sc, Name, Repetition, Parent, _Opts
+) ->
+    TypeOpts0 = common_opts(Parent),
+    LogicalType = logical_type_of(Sc),
+    TypeOpts = TypeOpts0#{?logical_type => LogicalType},
+    parquer_schema:int64(Name, Repetition, TypeOpts);
 avro_schema_to_parquet(Sc, _Name, _Repetition, _Parent, _Opts) ->
     throw_unsupported_type(Sc).
 
@@ -197,5 +205,9 @@ logical_type_of(#{<<"logicalType">> := <<"decimal">>} = Sc) ->
     Precision = maps:get(<<"precision">>, Sc),
     Scale = maps:get(<<"scale">>, Sc),
     parquer_schema:lt_decimal(#{?precision => Precision, ?scale => Scale});
+logical_type_of(#{<<"logicalType">> := <<"timestamp-micros">>, <<"adjust-to-utc">> := AdjustToUTC}) ->
+    parquer_schema:lt_timestamp(#{?is_adjusted_to_utc => AdjustToUTC, ?unit => ?time_unit_micros});
+logical_type_of(#{<<"logicalType">> := <<"timestamp-nanos">>, <<"adjust-to-utc">> := AdjustToUTC}) ->
+    parquer_schema:lt_timestamp(#{?is_adjusted_to_utc => AdjustToUTC, ?unit => ?time_unit_nanos});
 logical_type_of(_) ->
     ?undefined.
