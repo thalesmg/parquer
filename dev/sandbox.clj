@@ -36,6 +36,37 @@
 (require '[clojure.pprint :as pp])
 (require '[clojure.data.json :as json])
 
+(comment
+  ;; https://mvnrepository.com/artifact/org.apache.avro/avro
+
+  (add-libs '{org.apache.iceberg/iceberg-core {:mvn/version "1.10.0"}
+              org.apache.avro/avro {:mvn/version "1.12.1"}})
+
+  (import '(org.apache.iceberg Schema))
+  (import '(org.apache.iceberg.types Types$NestedField))
+
+  (def sc
+   (let [is-optional true
+         ;; avro-util (org.apache.iceberg.avro.AvroSchemaUtil.)
+         ]
+     (-> (Schema.
+          (into-array
+           Types$NestedField
+           [(Types$NestedField/of 1 is-optional "date" (org.apache.iceberg.types.Types$DateType/get))
+            (Types$NestedField/of 2 is-optional "time" (org.apache.iceberg.types.Types$TimeType/get))
+            ]))
+         ;; (.convert avro-util)
+         ;; (org.apache.iceberg.avro.AvroSchemaUtil/convert "mytable")
+         )))
+
+  (-> sc
+      (org.apache.iceberg.avro.AvroSchemaUtil/convert "mytable")
+      .toString
+      println
+      )
+
+  )
+
 (defn inspect
   [x & {:keys [:label] :or {label :>>>>>>>>>>>>>}}]
   (pp/pprint {label x})

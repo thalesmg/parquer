@@ -163,6 +163,18 @@ avro_schema_to_parquet(
     LogicalType = logical_type_of(Sc),
     TypeOpts = TypeOpts0#{?logical_type => LogicalType},
     parquer_schema:int64(Name, Repetition, TypeOpts);
+avro_schema_to_parquet(#{?t := <<"int">>, ?lt := <<"date">>} = Sc, Name, Repetition, Parent, _Opts) ->
+    TypeOpts0 = common_opts(Parent),
+    LogicalType = logical_type_of(Sc),
+    TypeOpts = TypeOpts0#{?logical_type => LogicalType},
+    parquer_schema:int32(Name, Repetition, TypeOpts);
+avro_schema_to_parquet(
+    #{?t := <<"long">>, ?lt := <<"time-", _/binary>>} = Sc, Name, Repetition, Parent, _Opts
+) ->
+    TypeOpts0 = common_opts(Parent),
+    LogicalType = logical_type_of(Sc),
+    TypeOpts = TypeOpts0#{?logical_type => LogicalType},
+    parquer_schema:int64(Name, Repetition, TypeOpts);
 avro_schema_to_parquet(Sc, _Name, _Repetition, _Parent, _Opts) ->
     throw_unsupported_type(Sc).
 
@@ -209,5 +221,10 @@ logical_type_of(#{<<"logicalType">> := <<"timestamp-micros">>, <<"adjust-to-utc"
     parquer_schema:lt_timestamp(#{?is_adjusted_to_utc => AdjustToUTC, ?unit => ?time_unit_micros});
 logical_type_of(#{<<"logicalType">> := <<"timestamp-nanos">>, <<"adjust-to-utc">> := AdjustToUTC}) ->
     parquer_schema:lt_timestamp(#{?is_adjusted_to_utc => AdjustToUTC, ?unit => ?time_unit_nanos});
+logical_type_of(#{<<"logicalType">> := <<"date">>}) ->
+    parquer_schema:lt_date();
+logical_type_of(#{<<"logicalType">> := <<"time-micros">>} = Sc) ->
+    AdjustToUTC = maps:get(<<"adjust-to-utc">>, Sc, false),
+    parquer_schema:lt_time(#{?is_adjusted_to_utc => AdjustToUTC, ?unit => ?time_unit_micros});
 logical_type_of(_) ->
     ?undefined.
