@@ -89,6 +89,10 @@
 -define(type_length, type_length).
 -define(unit, unit).
 
+-define(time_unit_millis, millis).
+-define(time_unit_micros, micros).
+-define(time_unit_nanos, nanos).
+
 -define(COMPRESSION_NONE, none).
 -define(COMPRESSION_SNAPPY, snappy).
 -define(COMPRESSION_ZSTD, zstd).

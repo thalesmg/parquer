@@ -1,0 +1,30 @@
+{
+  "type": "record",
+  "name": "mytable",
+  "fields": [
+    {
+      "name": "date",
+      "type": [
+        "null",
+        {
+          "type": "int",
+          "logicalType": "date"
+        }
+      ],
+      "default": null,
+      "field-id": 1
+    },
+    {
+      "name": "time",
+      "type": [
+        "null",
+        {
+          "type": "long",
+          "logicalType": "time-micros"
+        }
+      ],
+      "default": null,
+      "field-id": 2
+    }
+  ]
+}

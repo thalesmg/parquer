@@ -38,8 +38,9 @@ logical_type(T, Extra) ->
     Extra#{?name => T}.
 
 all_logical_types() ->
-    TimeUnit1 = #'timeUnit'{mILLIS = #'milliSeconds'{}},
-    TimeUnit2 = #'timeUnit'{nANOS = #'nanoSeconds'{}},
+    TimeUnit1 = ?time_unit_millis,
+    TimeUnit2 = ?time_unit_micros,
+    TimeUnit3 = ?time_unit_nanos,
     [
         logical_type(?lt_string),
         logical_type(?lt_list),
@@ -54,10 +55,11 @@ all_logical_types() ->
         logical_type(?lt_float16),
         logical_type(?lt_time, #{?unit => TimeUnit1, ?is_adjusted_to_utc => true}),
         logical_type(?lt_timestamp, #{?unit => TimeUnit2, ?is_adjusted_to_utc => false}),
+        logical_type(?lt_timestamp, #{?unit => TimeUnit3, ?is_adjusted_to_utc => true}),
         logical_type(?lt_int, #{?bit_width => 3, ?is_signed => true}),
         logical_type(?lt_variant, #{?specification_version => 10}),
         logical_type(?lt_geometry, #{?crs => <<"crs">>}),
-        logical_type(?lt_geography, #{?crs => <<"crs">>, ?algorithm => <<"algo">>})
+        logical_type(?lt_geography, #{?crs => <<"crs">>, ?algorithm => 123})
     ].
 
 schema_element_params(LogicalType, ConvertedType) ->
@@ -68,6 +70,15 @@ schema_element_params(LogicalType, ConvertedType) ->
         ?converted_type => ConvertedType
     }.
 
+try_serialize(Type, Struct) ->
+    try
+        _ = parquer_thrift_utils:serialize(Struct)
+    catch
+        K:E:S ->
+            ?debugFmt("\n\n~p failed to encode:\n  ~p:~p\n  ~p", [Type, K, E, S]),
+            erlang:raise(K, E, S)
+    end.
+
 %%------------------------------------------------------------------------------
 %% Helper fns
 %%------------------------------------------------------------------------------
@@ -75,17 +86,23 @@ schema_element_params(LogicalType, ConvertedType) ->
 %% Only to check we have clauses for all constants; i.e., it doesn't crash.
 logical_type_coverage_test_() ->
     [
-        ?_test(
-            parquer_thrift_utils:schema_element(schema_element_params(LogicalType, ?undefined))
-        )
+        ?_test(begin
+            Struct = parquer_thrift_utils:schema_element(
+                schema_element_params(LogicalType, ?undefined)
+            ),
+            try_serialize(LogicalType, Struct)
+        end)
      || LogicalType <- all_logical_types()
     ].
 
 %% Only to check we have clauses for all constants; i.e., it doesn't crash.
 converted_type_coverage_test_() ->
     [
-        ?_test(
-            parquer_thrift_utils:schema_element(schema_element_params(?undefined, ConvertedType))
-        )
+        ?_test(begin
+            Struct = parquer_thrift_utils:schema_element(
+                schema_element_params(?undefined, ConvertedType)
+            ),
+            try_serialize(ConvertedType, Struct)
+        end)
      || ConvertedType <- all_converted_types()
     ].

@@ -610,3 +610,85 @@ fixed1_test() ->
         },
         parquer_schema_avro:from_avro(read_example_avro_sc("fixed1.avsc"))
     ).
+
+%% Checks iceberg `timestamp*` types are supported.
+timestamp_types_test() ->
+    ?assertMatch(
+        #{
+            ?name := <<"__root">>,
+            ?repetition := ?REPETITION_REPEATED,
+            ?fields :=
+                [
+                    #{
+                        ?id := 1,
+                        ?name := <<"timestamp">>,
+                        ?primitive_type := ?INT64,
+                        ?logical_type := #{
+                            ?name := ?lt_timestamp,
+                            ?is_adjusted_to_utc := false,
+                            ?unit := ?time_unit_micros
+                        }
+                    },
+                    #{
+                        ?id := 2,
+                        ?name := <<"timestamptz">>,
+                        ?primitive_type := ?INT64,
+                        ?logical_type := #{
+                            ?name := ?lt_timestamp,
+                            ?is_adjusted_to_utc := true,
+                            ?unit := ?time_unit_micros
+                        }
+                    },
+                    #{
+                        ?id := 3,
+                        ?name := <<"timestamp_ns">>,
+                        ?primitive_type := ?INT64,
+                        ?logical_type := #{
+                            ?name := ?lt_timestamp,
+                            ?is_adjusted_to_utc := false,
+                            ?unit := ?time_unit_nanos
+                        }
+                    },
+                    #{
+                        ?id := 4,
+                        ?name := <<"timestamptz_ns">>,
+                        ?primitive_type := ?INT64,
+                        ?logical_type := #{
+                            ?name := ?lt_timestamp,
+                            ?is_adjusted_to_utc := true,
+                            ?unit := ?time_unit_nanos
+                        }
+                    }
+                ]
+        },
+        parquer_schema_avro:from_avro(read_example_avro_sc("timestamps1.avsc"))
+    ).
+
+%% Checks iceberg `time` and `date` types are supported.
+timestamp_date_time_test() ->
+    ?assertMatch(
+        #{
+            ?name := <<"mytable">>,
+            ?repetition := ?REPETITION_REPEATED,
+            ?fields :=
+                [
+                    #{
+                        ?id := 1,
+                        ?name := <<"date">>,
+                        ?primitive_type := ?INT32,
+                        ?logical_type := #{?name := ?lt_date}
+                    },
+                    #{
+                        ?id := 2,
+                        ?name := <<"time">>,
+                        ?primitive_type := ?INT64,
+                        ?logical_type := #{
+                            ?name := ?lt_time,
+                            ?is_adjusted_to_utc := false,
+                            ?unit := ?time_unit_micros
+                        }
+                    }
+                ]
+        },
+        parquer_schema_avro:from_avro(read_example_avro_sc("timestamps2.avsc"))
+    ).

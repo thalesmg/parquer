@@ -42,7 +42,10 @@
     lt_list/0,
     lt_map/0,
     lt_enum/0,
+    lt_date/0,
     lt_decimal/1,
+    lt_timestamp/1,
+    lt_time/1,
 
     %% Primitive types
     bool/2,
@@ -231,8 +234,16 @@ lt_map() -> #{?name => ?lt_map}.
 
 lt_enum() -> #{?name => ?lt_enum}.
 
+lt_date() -> #{?name => ?lt_date}.
+
 lt_decimal(#{?precision := Precision, ?scale := Scale}) ->
     #{?name => ?lt_decimal, ?precision => Precision, ?scale => Scale}.
+
+lt_timestamp(#{?is_adjusted_to_utc := IsAdjustedToUTC, ?unit := Unit}) ->
+    #{?name => ?lt_timestamp, ?is_adjusted_to_utc => IsAdjustedToUTC, ?unit => Unit}.
+
+lt_time(#{?is_adjusted_to_utc := IsAdjustedToUTC, ?unit := Unit}) ->
+    #{?name => ?lt_time, ?is_adjusted_to_utc => IsAdjustedToUTC, ?unit => Unit}.
 
 do_flatten(#{?fields := Fields} = Type, Context0) ->
     #{

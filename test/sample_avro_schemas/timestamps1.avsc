@@ -1,0 +1,58 @@
+{
+  "name": "__root",
+  "type": "record",
+  "fields": [
+    {
+      "default": null,
+      "field-id": 1,
+      "name": "timestamp",
+      "type": [
+        "null",
+        {
+          "adjust-to-utc": false,
+          "logicalType": "timestamp-micros",
+          "type": "long"
+        }
+      ]
+    },
+    {
+      "default": null,
+      "field-id": 2,
+      "name": "timestamptz",
+      "type": [
+        "null",
+        {
+          "adjust-to-utc": true,
+          "logicalType": "timestamp-micros",
+          "type": "long"
+        }
+      ]
+    },
+    {
+      "default": null,
+      "field-id": 3,
+      "name": "timestamp_ns",
+      "type": [
+        "null",
+        {
+          "adjust-to-utc": false,
+          "logicalType": "timestamp-nanos",
+          "type": "long"
+        }
+      ]
+    },
+    {
+      "default": null,
+      "field-id": 4,
+      "name": "timestamptz_ns",
+      "type": [
+        "null",
+        {
+          "adjust-to-utc": true,
+          "logicalType": "timestamp-nanos",
+          "type": "long"
+        }
+      ]
+    }
+  ]
+}

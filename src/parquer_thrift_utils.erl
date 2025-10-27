@@ -227,7 +227,8 @@ logical_type_of(#{?name := ?lt_bson}) ->
     #'logicalType'{bSON = #'bsonType'{}};
 logical_type_of(#{?name := ?lt_float16}) ->
     #'logicalType'{fLOAT16 = #'float16Type'{}};
-logical_type_of(#{?name := ?lt_time, ?unit := Unit, ?is_adjusted_to_utc := IsAdjusted}) ->
+logical_type_of(#{?name := ?lt_time, ?unit := Unit0, ?is_adjusted_to_utc := IsAdjusted}) ->
+    Unit = time_unit_of(Unit0),
     #'logicalType'{
         tIME =
             #'timeType'{
@@ -235,7 +236,8 @@ logical_type_of(#{?name := ?lt_time, ?unit := Unit, ?is_adjusted_to_utc := IsAdj
                 unit = Unit
             }
     };
-logical_type_of(#{?name := ?lt_timestamp, ?unit := Unit, ?is_adjusted_to_utc := IsAdjusted}) ->
+logical_type_of(#{?name := ?lt_timestamp, ?unit := Unit0, ?is_adjusted_to_utc := IsAdjusted}) ->
+    Unit = time_unit_of(Unit0),
     #'logicalType'{
         tIMESTAMP =
             #'timestampType'{
@@ -277,3 +279,10 @@ logical_type_of(#{?name := ?lt_decimal} = T) ->
         dECIMAL =
             #'decimalType'{precision = Precision, scale = Scale}
     }.
+
+time_unit_of(?time_unit_millis) ->
+    #'timeUnit'{mILLIS = #'milliSeconds'{}};
+time_unit_of(?time_unit_micros) ->
+    #'timeUnit'{mICROS = #'microSeconds'{}};
+time_unit_of(?time_unit_nanos) ->
+    #'timeUnit'{nANOS = #'nanoSeconds'{}}.
