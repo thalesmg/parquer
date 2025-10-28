@@ -143,7 +143,14 @@
     any() => term()
 }.
 -type data() :: parquer_zipper:data().
--type compression() :: ?COMPRESSION_NONE | ?COMPRESSION_SNAPPY | ?COMPRESSION_ZSTD.
+-type compression() ::
+    {?COMPRESSION_NONE, compression_none_opts()}
+    | {?COMPRESSION_SNAPPY, compression_snappy_opts()}
+    | {?COMPRESSION_ZSTD, compression_zstd_opts()}.
+
+-type compression_none_opts() :: #{}.
+-type compression_snappy_opts() :: #{}.
+-type compression_zstd_opts() :: #{}.
 
 -type write_metadata() :: #{
     atom() => term()
