@@ -18,6 +18,7 @@
 %% API
 -export([
     new/2,
+    reset/2,
     next/1,
     read/1,
     flatten/2
@@ -36,6 +37,12 @@ track of definition and repetition levels.
 
 It's not a general zipper because it only moves forward, and keeps track of the levels.
 """.
+
+-compile(
+    {inline, [
+        next/1, down/1, deep_down/1, read/1, backtrack/1, repetition_level/1, definition_level/1
+    ]}
+).
 
 %%------------------------------------------------------------------------------
 %% Type declarations
@@ -72,6 +79,10 @@ It's not a general zipper because it only moves forward, and keeps track of the 
 %%------------------------------------------------------------------------------
 %% API
 %%------------------------------------------------------------------------------
+
+-spec reset(t(), data()) -> t().
+reset(Z0, Data) ->
+    Z0#zipper{node = Data}.
 
 -spec new([{term(), repetition()}], data()) -> t().
 new(KeyRepetitions, Data) ->

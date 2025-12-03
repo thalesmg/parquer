@@ -96,7 +96,8 @@
     definition_levels = [],
     %% N.B. these are in reverse order
     repetition_levels = [],
-    data
+    data,
+    zipper
 }).
 
 %% Other values
@@ -297,7 +298,8 @@ initial_column_state(LeafColumnSchema, Opts) ->
         max_definition_level = MaxDefLevel,
         repetition_levels = [],
         definition_levels = [],
-        data = init_data(PrimitiveType, KeyPath, Opts)
+        data = init_data(PrimitiveType, KeyPath, Opts),
+        zipper = parquer_zipper:new(KeyRepetitions, [])
     }.
 
 init_data(?BOOLEAN, _KeyPath, _Opts) ->
@@ -315,8 +317,8 @@ init_data(_PrimitiveType, KeyPath, Opts) ->
     }.
 
 append_to_column(#c{} = Col0, Record) ->
-    #c{path = KeyRepetitions} = Col0,
-    Zipper = parquer_zipper:new(KeyRepetitions, Record),
+    #c{zipper = Zipper0} = Col0,
+    Zipper = parquer_zipper:reset(Zipper0, Record),
     Col1 = Col0#c{num_rows = Col0#c.num_rows + 1},
     do_append_to_column(Col1, parquer_zipper:next(Zipper)).
 
