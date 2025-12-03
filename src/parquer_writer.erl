@@ -44,6 +44,13 @@
 
 -define(IS_VALID_DATA_HEADER_VSN(VSN), ((VSN == 1) orelse (VSN == 2))).
 
+-ifdef(TEST).
+-define(MAX_DICT_SIZE, 100).
+-else.
+%% 2 ** 32 - 1
+-define(MAX_DICT_SIZE, 4294967295).
+-endif.
+
 -define(compressed, compressed).
 -define(compressed_size, compressed_size).
 -define(concrete_dictionary, concrete_dictionary).
@@ -337,7 +344,6 @@ do_append_to_column(Col0, Zipper0) ->
 
 append_datum(#c{data = #data{enable_dictionary = true}} = C0, Datum) ->
     #data{values = Values0} = Data0 = C0#c.data,
-    %% TODO: handle dictionary key size overflow.
     Data1 = ensure_key(Data0, Datum, C0),
     Values1 = [Datum | Values0],
     Data2 = Data1#data{values = Values1},
@@ -360,6 +366,12 @@ append_repetition_level(#c{repetition_levels = RepetitionLevels0} = Col0, RepLev
 
 ensure_key(#data{dictionary = Dict} = D, Datum, _C) when is_map_key(Datum, Dict) ->
     D;
+ensure_key(#data{dictionary = Dict} = D0, _Datum, _C) when map_size(Dict) >= ?MAX_DICT_SIZE ->
+    %% Fallback to plain encoding
+    D0#data{
+        dictionary = #{},
+        enable_dictionary = false
+    };
 ensure_key(#data{dictionary = Dict0, byte_size = ByteSize0} = D0, Datum, C) ->
     Dict = Dict0#{Datum => true},
     ByteSize = ByteSize0 + estimate_datum_byte_size(Datum, C),
@@ -549,7 +561,6 @@ serialize_column(#c{data = #data{enable_dictionary = false}} = C, #writer{} = W)
     },
     {IOData, WriteMeta};
 serialize_column(#c{data = #data{enable_dictionary = true}} = C, #writer{} = W) ->
-    %% TODO: handle fallback to plain encoding when dictionary overflows
     %% Serialize dictionary (plain)
     #{
         ?concrete_dictionary := ConcreteDict,
@@ -739,7 +750,6 @@ serialize_data_page_v1(SerializedInfo, #c{} = C) ->
         ?compressed_size := ColDataBinCompSize
     } = SerializedInfo,
     IsDictEnabled = C#c.data#data.enable_dictionary,
-    %% TODO: handle fallback to plain when dict overflows
     ValueEncoding =
         case IsDictEnabled of
             true -> ?ENCODING_PLAIN_DICT;
@@ -776,7 +786,6 @@ serialize_data_page_v2(SerializedInfo, #c{} = C) ->
         ?rep_level_bin := RepLevelBin
     } = SerializedInfo,
     IsDictEnabled = C#c.data#data.enable_dictionary,
-    %% TODO: handle fallback to plain when dict overflows
     ValueEncoding =
         case IsDictEnabled of
             true -> ?ENCODING_PLAIN_DICT;
@@ -874,7 +883,6 @@ mk_column_chunk(WriteMeta, Col, Writer0) ->
         ?metadata => parquer_thrift_utils:column_metadata(#{
             ?type => Col#c.primitive_type,
             ?num_values => Col#c.num_values,
-            %% fixme: might change if dictionary fell back to plain
             ?encodings => encodings_for(Col),
             ?path_in_schema => PathInSchema,
             ?codec => Compression,
@@ -892,7 +900,6 @@ mk_column_chunk(WriteMeta, Col, Writer0) ->
 encodings_for(#c{primitive_type = ?BOOLEAN}) ->
     [?ENCODING_RLE];
 encodings_for(#c{}) ->
-    %% fixme: might change if dictionary fell back to plain
     [?ENCODING_PLAIN, ?ENCODING_RLE, ?ENCODING_RLE_DICT].
 
 dict_page_offset(#write_meta{dict_page_header_size = undefined}, _Writer) ->

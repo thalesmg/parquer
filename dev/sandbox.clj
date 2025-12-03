@@ -175,12 +175,17 @@
         schema (Schemas/fromParquet conf uri)]
     schema))
 
-(defn get-fmd
+(defn get-file-reader
   [filepath]
   (let [in-file (-> filepath io/file .toPath (LocalInputFile.))
         file-reader (ParquetFileReader/open in-file)]
-    (-> file-reader
-        .getFileMetaData)))
+    file-reader))
+
+(defn get-fmd
+  [filepath]
+  (-> filepath
+      get-file-reader
+      .getFileMetaData))
 
 (defn get-parquet-schema
   [filepath]

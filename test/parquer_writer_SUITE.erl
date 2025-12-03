@@ -22,6 +22,7 @@
 -include_lib("eunit/include/eunit.hrl").
 
 -include("parquer.hrl").
+-include("parquer_parquet_types.hrl").
 
 %%------------------------------------------------------------------------------
 %% Type declarations
@@ -723,4 +724,32 @@ t_compressions(TCConfig) when is_list(TCConfig) ->
     {IO1, _} = parquer_writer:close(Writer1),
     Reference = query_oracle([IO0, IO1], TCConfig),
     ?assertEqual([#{?F0 => <<"hiiiiiii">>}], Reference),
+    ok.
+
+t_dict_overflow() ->
+    [{matrix, true}].
+t_dict_overflow(matrix) ->
+    [
+        [DataPage]
+     || DataPage <- [?data_page_v1, ?data_page_v2]
+    ];
+t_dict_overflow(TCConfig) when is_list(TCConfig) ->
+    Schema = smoke_schema1(?REPETITION_REQUIRED, int64, _TypeOpts = #{}),
+    Opts = opts_of(TCConfig),
+    Writer0 = parquer_writer:new(Schema, Opts),
+    %% See `parquer_writer:?MAX_DICT_SIZE`.
+    NumRecords = 101,
+    try
+        persistent_term:put({parquet_writer, max_dict_size}, NumRecords - 1),
+        Records = lists:map(fun(N) -> #{?F0 => N} end, lists:seq(1, NumRecords)),
+        {IO0, Writer1} = parquer_writer:write_many(Writer0, Records),
+        {IO1, _} = parquer_writer:close(Writer1),
+        %% Should be readable by oracle.
+        Reference = query_oracle([IO0, IO1], TCConfig),
+        ?assertEqual(Records, Reference),
+        ok
+    after
+        persistent_term:erase({parquer_writer, max_dict_size}),
+        ok
+    end,
     ok.
