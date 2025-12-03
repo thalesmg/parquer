@@ -321,30 +321,27 @@ append_to_column(#c{} = Col0, [Record | Rest]) ->
     #c{zipper = Zipper0} = Col0,
     Zipper = parquer_zipper:reset(Zipper0, Record),
     Col1 = Col0#c{num_rows = Col0#c.num_rows + 1},
-    do_append_to_column(Col1, parquer_zipper:next(Zipper), Rest).
+    do_append_to_column(Col1, parquer_zipper:next_read(Zipper), Rest).
 
 -compile({inline, [do_append_to_column/3]}).
-do_append_to_column(Col0, Zipper0, Rest) ->
-    case parquer_zipper:read(Zipper0) of
-        false ->
-            append_to_column(Col0, Rest);
-        {RepLevel, DefLevel, ?undefined} ->
-            Col1 = Col0#c{
-                num_values = Col0#c.num_values + 1,
-                num_nulls = Col0#c.num_nulls + 1
-            },
-            Col2 = append_definition_level(Col1, DefLevel),
-            Col3 = append_repetition_level(Col2, RepLevel),
-            do_append_to_column(Col3, parquer_zipper:next(Zipper0), Rest);
-        {RepLevel, DefLevel, Val} ->
-            Col1 = Col0#c{
-                num_values = Col0#c.num_values + 1
-            },
-            Col2 = append_definition_level(Col1, DefLevel),
-            Col3 = append_repetition_level(Col2, RepLevel),
-            Col4 = append_datum(Col3, Val),
-            do_append_to_column(Col4, parquer_zipper:next(Zipper0), Rest)
-    end.
+do_append_to_column(Col0, ?undefined, Rest) ->
+    append_to_column(Col0, Rest);
+do_append_to_column(Col0, {{RepLevel, DefLevel, ?undefined}, Zipper0}, Rest) ->
+    Col1 = Col0#c{
+        num_values = Col0#c.num_values + 1,
+        num_nulls = Col0#c.num_nulls + 1
+    },
+    Col2 = append_definition_level(Col1, DefLevel),
+    Col3 = append_repetition_level(Col2, RepLevel),
+    do_append_to_column(Col3, parquer_zipper:next_read(Zipper0), Rest);
+do_append_to_column(Col0, {{RepLevel, DefLevel, Val}, Zipper0}, Rest) ->
+    Col1 = Col0#c{
+        num_values = Col0#c.num_values + 1
+    },
+    Col2 = append_definition_level(Col1, DefLevel),
+    Col3 = append_repetition_level(Col2, RepLevel),
+    Col4 = append_datum(Col3, Val),
+    do_append_to_column(Col4, parquer_zipper:next_read(Zipper0), Rest).
 
 append_datum(#c{data = #data{enable_dictionary = true}} = C0, Datum) ->
     #data{values = Values0} = Data0 = C0#c.data,

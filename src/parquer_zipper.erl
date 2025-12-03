@@ -21,6 +21,7 @@
     reset/2,
     next/1,
     read/1,
+    next_read/1,
     flatten/2
 ]).
 
@@ -136,6 +137,34 @@ next(#zipper{path = KeyRepetitions, context = Context} = Z0) ->
             end
     end.
 
+-spec next_read(?undefined | t()) -> ?undefined | {value(), ?undefined | t()}.
+next_read(?undefined) ->
+    ?undefined;
+next_read(#zipper{path = KeyRepetitions, context = Context} = Z0) ->
+    case down(Z0) of
+        #zipper{} = Z1 ->
+            Z2 = deep_down(Z1),
+            {read(Z2), Z2};
+        false when KeyRepetitions /= [], Context == undefined ->
+            %% This is the first `next`, but the record is completely blank.  Return at least
+            %% one `?undefined` for the whole record.
+            Z1 = Z0#zipper{node = ?undefined, context = #context{}},
+            {read(Z1), ?undefined};
+        false ->
+            case right(Z0) of
+                #zipper{} = Z1 ->
+                    Z2 = deep_down(Z1),
+                    {read(Z2), Z2};
+                false ->
+                    case backtrack(Z0) of
+                        #zipper{node = ?END} ->
+                            ?undefined;
+                        Z1 ->
+                            {read(Z1), Z1}
+                    end
+            end
+    end.
+
 %%------------------------------------------------------------------------------
 %% Debug only
 %%------------------------------------------------------------------------------
@@ -220,7 +249,7 @@ repetition_level(#context{parent_path = PPath}) ->
 repetition_level(Path) ->
     lists:sum([repetition_level_of(Repetition) || {_Key, Repetition} <- Path]).
 
--spec backtrack(t()) -> t().
+-spec backtrack(t()) -> t() | undefined.
 backtrack(Z0) ->
     case up(Z0) of
         #zipper{} = Z1 ->
