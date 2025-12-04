@@ -96,7 +96,8 @@
     definition_levels = [],
     %% N.B. these are in reverse order
     repetition_levels = [],
-    data
+    data,
+    zipper
 }).
 
 %% Other values
@@ -182,24 +183,23 @@ new(Schema, #{} = Opts0) ->
 
 -spec write_many(t(), [data()]) -> {iodata(), t()}.
 write_many(#writer{} = Writer0, Records) when is_list(Records) ->
-    lists:foldl(
-        fun(Record, {IOAcc0, WAcc0}) ->
-            {IO, WAcc} = write(WAcc0, Record),
-            IOAcc =
-                case IO of
-                    [] -> IOAcc0;
-                    _ -> [IOAcc0, IO]
-                end,
-            {IOAcc, WAcc}
-        end,
-        {[], Writer0},
-        Records
-    ).
+    NumRecords = length(Records),
+    Cols = lists:map(
+        fun(C) -> append_to_column(C, Records) end,
+        Writer0#writer.columns
+    ),
+    Writer1 = Writer0#writer{
+        has_data = true,
+        num_rows = Writer0#writer.num_rows + NumRecords,
+        total_num_rows = Writer0#writer.total_num_rows + NumRecords,
+        columns = Cols
+    },
+    maybe_emit_row_group(Writer1).
 
 -spec write(t(), data()) -> {iodata(), t()}.
 write(#writer{} = Writer0, Record) ->
     Cols = lists:map(
-        fun(C) -> append_to_column(C, Record) end,
+        fun(C) -> append_to_column(C, [Record]) end,
         Writer0#writer.columns
     ),
     Writer1 = Writer0#writer{
@@ -297,7 +297,8 @@ initial_column_state(LeafColumnSchema, Opts) ->
         max_definition_level = MaxDefLevel,
         repetition_levels = [],
         definition_levels = [],
-        data = init_data(PrimitiveType, KeyPath, Opts)
+        data = init_data(PrimitiveType, KeyPath, Opts),
+        zipper = parquer_zipper:new(KeyRepetitions, [])
     }.
 
 init_data(?BOOLEAN, _KeyPath, _Opts) ->
@@ -314,33 +315,33 @@ init_data(_PrimitiveType, KeyPath, Opts) ->
         values = []
     }.
 
-append_to_column(#c{} = Col0, Record) ->
-    #c{path = KeyRepetitions} = Col0,
-    Zipper = parquer_zipper:new(KeyRepetitions, Record),
+append_to_column(#c{} = Col0, []) ->
+    Col0;
+append_to_column(#c{} = Col0, [Record | Rest]) ->
+    #c{zipper = Zipper0} = Col0,
+    Zipper = parquer_zipper:reset(Zipper0, Record),
     Col1 = Col0#c{num_rows = Col0#c.num_rows + 1},
-    do_append_to_column(Col1, parquer_zipper:next(Zipper)).
+    do_append_to_column(Col1, parquer_zipper:next_read(Zipper), Rest).
 
-do_append_to_column(Col0, Zipper0) ->
-    case parquer_zipper:read(Zipper0) of
-        false ->
-            Col0;
-        {RepLevel, DefLevel, ?undefined} ->
-            Col1 = Col0#c{
-                num_values = Col0#c.num_values + 1,
-                num_nulls = Col0#c.num_nulls + 1
-            },
-            Col2 = append_definition_level(Col1, DefLevel),
-            Col3 = append_repetition_level(Col2, RepLevel),
-            do_append_to_column(Col3, parquer_zipper:next(Zipper0));
-        {RepLevel, DefLevel, Val} ->
-            Col1 = Col0#c{
-                num_values = Col0#c.num_values + 1
-            },
-            Col2 = append_definition_level(Col1, DefLevel),
-            Col3 = append_repetition_level(Col2, RepLevel),
-            Col4 = append_datum(Col3, Val),
-            do_append_to_column(Col4, parquer_zipper:next(Zipper0))
-    end.
+-compile({inline, [do_append_to_column/3]}).
+do_append_to_column(Col0, ?undefined, Rest) ->
+    append_to_column(Col0, Rest);
+do_append_to_column(Col0, {{RepLevel, DefLevel, ?undefined}, Zipper0}, Rest) ->
+    Col1 = Col0#c{
+        num_values = Col0#c.num_values + 1,
+        num_nulls = Col0#c.num_nulls + 1
+    },
+    Col2 = append_definition_level(Col1, DefLevel),
+    Col3 = append_repetition_level(Col2, RepLevel),
+    do_append_to_column(Col3, parquer_zipper:next_read(Zipper0), Rest);
+do_append_to_column(Col0, {{RepLevel, DefLevel, Val}, Zipper0}, Rest) ->
+    Col1 = Col0#c{
+        num_values = Col0#c.num_values + 1
+    },
+    Col2 = append_definition_level(Col1, DefLevel),
+    Col3 = append_repetition_level(Col2, RepLevel),
+    Col4 = append_datum(Col3, Val),
+    do_append_to_column(Col4, parquer_zipper:next_read(Zipper0), Rest).
 
 append_datum(#c{data = #data{enable_dictionary = true}} = C0, Datum) ->
     #data{values = Values0} = Data0 = C0#c.data,
